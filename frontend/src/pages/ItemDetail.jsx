@@ -216,6 +216,8 @@ export default function ItemDetail() {
   // A belt or a ring contributes no insulation at all, so calling it "Cold" is
   // nonsense — those categories say so plainly instead of picking a band.
   const addsWarmth = (meta.default_warmth?.[item.category] ?? 5) > 0
+  const damage = (meta.damage_levels || []).find((d) => d.key === item.damage)
+  const damaged = item.damage && item.damage !== 'none'
   const warmthBand = nearestOption(warmthOptions(meta, item.category), item.warmth)
   const formalityBand = nearestOption(meta.formality_levels || [], item.formality)
 
@@ -281,6 +283,21 @@ export default function ItemDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{item.name}</h1>
               <StatusPill status={item.status} size="md" />
+              {damaged && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+                  title={damage?.hint}
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    color: item.damage === 'bad' ? 'var(--bad)' : 'var(--warn)',
+                  }}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full"
+                        style={{ background: item.damage === 'bad' ? 'var(--bad)' : 'var(--warn)' }} />
+                  {damage?.label ?? item.damage} damage
+                </span>
+              )}
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
               {titleCase(item.category)}

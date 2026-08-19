@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS items (
   material          TEXT,
   pattern           TEXT,
   fit               TEXT,
+  damage            TEXT NOT NULL DEFAULT 'none',
   colour_primary    TEXT,
   colour_secondary  TEXT,
   colour_palette    TEXT,

@@ -10,6 +10,7 @@ export function itemFormState(item = {}) {
     material: item.material || '',
     pattern: item.pattern || '',
     fit: item.fit || '',
+    damage: item.damage || 'none',
     colour_primary: item.colour_primary || '',
     colour_secondary: item.colour_secondary || '',
     warmth: item.warmth ?? 5,
@@ -68,6 +69,37 @@ export function nearestOption(options, value) {
   if (!options.length) return null
   return options.reduce((best, o) =>
     Math.abs(o.value - value) < Math.abs(best.value - value) ? o : best)
+}
+
+/** Three-across chooser. `active` decides which option is highlighted. */
+function OptionRow({ label, hint, options, isActive, onChange }) {
+  return (
+    <Field label={label} hint={hint}>
+      <div className="grid grid-cols-3 gap-2">
+        {options.map((o) => {
+          const on = isActive(o)
+          return (
+            <button
+              key={o.key} type="button" onClick={() => onChange(o)}
+              className="card px-2 py-2 text-center"
+              style={on
+                ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' }
+                : undefined}
+            >
+              <span className="block text-sm font-semibold"
+                    style={on ? { color: 'var(--accent)' } : undefined}>
+                {o.label}
+              </span>
+              <span className="block text-[0.68rem] leading-tight"
+                    style={{ color: 'var(--muted)' }}>
+                {o.hint}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </Field>
+  )
 }
 
 function LevelPicker({ label, hint, options, value, onChange }) {
@@ -217,6 +249,14 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         options={formalities}
         value={form.formality}
         onChange={(v) => setForm({ ...form, formality: v })}
+      />
+
+      <OptionRow
+        label="Damage"
+        hint="Condition of the garment itself, separate from whether it needs washing."
+        options={meta.damage_levels || []}
+        isActive={(o) => (form.damage || 'none') === o.key}
+        onChange={(o) => setForm({ ...form, damage: o.key })}
       />
 
       <Field label="Seasons">

@@ -89,7 +89,17 @@ FIT_OPTIONS = {
     "outerwear": ["fitted", "regular", "loose", "oversized"],
 }
 
-PATTERNS = ["plain", "stripe", "check", "floral", "print", "logo", "knit", "herringbone"]
+PATTERNS = ["plain", "stripe", "check", "floral", "print", "logo", "mini logo",
+            "knit", "herringbone"]
+
+# Condition of the garment. Kept separate from status, which is about laundry:
+# a shirt can be clean and still have a hole in it.
+DAMAGE_LEVELS = [
+    {"key": "none", "label": "None", "hint": "As good as new"},
+    {"key": "mild", "label": "Mild", "hint": "Small mark or loose thread"},
+    {"key": "bad", "label": "Bad", "hint": "Hole or stain, needs repair"},
+]
+DAMAGE_KEYS = [d["key"] for d in DAMAGE_LEVELS]
 
 # Suggested tags offered as one-tap chips. Free-text tags still work.
 SUGGESTED_TAGS = ["favourite", "logo", "smart", "comfy", "work", "gym",

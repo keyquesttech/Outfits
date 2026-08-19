@@ -2,7 +2,8 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from .. import config, db, images, jobs, wash
 from ..constants import (
-    BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DEFAULT_FORMALITY, DEFAULT_WARMTH,
+    BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DAMAGE_KEYS, DAMAGE_LEVELS,
+    DEFAULT_FORMALITY, DEFAULT_WARMTH,
     DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER,
     FIT_OPTIONS, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
     WARMTH_LEVELS, WASH_CYCLES,
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api", tags=["items"])
 ITEM_COLUMNS = {
     "name", "category", "subcategory", "brand", "material", "pattern",
     "colour_primary", "colour_secondary", "warmth", "formality", "seasons",
-    "wind_proof", "water_proof", "fit",
+    "wind_proof", "water_proof", "fit", "damage",
     "wash_after_wears", "status", "notes", "is_active", "colour_palette",
     "image_path", "thumb_path", "cutout_path",
 }
@@ -40,6 +41,7 @@ def meta():
         "default_warmth": DEFAULT_WARMTH,
         "default_formality": DEFAULT_FORMALITY,
         "patterns": PATTERNS,
+        "damage_levels": DAMAGE_LEVELS,
         "fit_options": FIT_OPTIONS,
         "suggested_tags": SUGGESTED_TAGS,
         "warmth_levels": WARMTH_LEVELS,
@@ -169,12 +171,14 @@ def create_item(payload: ItemIn):
         raise HTTPException(400, f"Unknown category: {payload.category}")
     item_id = db.execute(
         "INSERT INTO items(name, category, subcategory, brand, material, pattern, fit, "
-        "colour_primary, colour_secondary, warmth, formality, seasons, wind_proof, "
+        "damage, colour_primary, colour_secondary, warmth, formality, seasons, wind_proof, "
         "water_proof, wash_after_wears, notes) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             payload.name, payload.category, payload.subcategory, payload.brand,
-            payload.material, payload.pattern, payload.fit, payload.colour_primary,
+            payload.material, payload.pattern, payload.fit,
+            payload.damage if payload.damage in DAMAGE_KEYS else "none",
+            payload.colour_primary,
             payload.colour_secondary, payload.warmth, payload.formality,
             db.dumps(payload.seasons or []), int(payload.wind_proof),
             int(payload.water_proof),
@@ -270,6 +274,8 @@ def update_item(item_id: int, payload: ItemPatch):
         raise HTTPException(400, f"Unknown category: {updates['category']}")
     if "status" in updates and updates["status"] not in STATUSES:
         raise HTTPException(400, f"Unknown status: {updates['status']}")
+    if updates.get("damage") and updates["damage"] not in DAMAGE_KEYS:
+        raise HTTPException(400, f"Unknown damage level: {updates['damage']}")
 
     if updates:
         sets = ", ".join(f"{k} = ?" for k in updates)

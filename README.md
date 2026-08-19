@@ -28,8 +28,10 @@ field stays editable afterwards either way.
 Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
 loose, oversized and so on, chosen per category.
 
-Warmth is **Cold / Neutral / Hot** and formality is **Casual / Informal / Formal** — three
-buttons each rather than a slider. Underneath, warmth is still a 0-10 number because the
+Warmth is **Cold / Neutral / Hot**, formality is **Casual / Informal / Formal**, and
+damage is **None / Mild / Bad** — three buttons each rather than a slider. Damage is about
+the garment's condition, separate from whether it needs washing: a shirt can be clean and
+still have a hole in it. Anything not "None" shows as a badge on the item. Underneath, warmth is still a 0-10 number because the
 recommender adds it up and compares the total against a temperature, and the three buttons
 map relative to the category: "hot" for a t-shirt is not the same number as "hot" for an
 overcoat.
