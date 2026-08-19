@@ -32,6 +32,7 @@ const qs = (params) => {
 
 export const api = {
   meta: () => get('/api/meta'),
+  fieldValues: () => get('/api/field-values'),
   health: () => get('/api/health'),
 
   items: (params) => get('/api/items' + qs(params)),

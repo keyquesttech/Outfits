@@ -20,6 +20,7 @@ def item_out(row: dict) -> dict:
     item["palette"] = db.loads(item.pop("colour_palette", None), [])
     item["seasons"] = db.loads(item.get("seasons"), [])
     item["wind_proof"] = bool(item.get("wind_proof"))
+    item["takes_belt"] = bool(item.get("takes_belt", 1))
     item["water_proof"] = bool(item.get("water_proof"))
     item["is_active"] = bool(item.get("is_active", 1))
 

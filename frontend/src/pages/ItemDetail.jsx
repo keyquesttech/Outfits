@@ -8,6 +8,7 @@ import ItemForm, {
   itemFormPayload, itemFormState, nearestOption, warmthOptions,
 } from '../components/ItemForm.jsx'
 import ImageEditor from '../components/ImageEditor.jsx'
+import CareForm, { careFormPayload, careFormState } from '../components/CareForm.jsx'
 import {
   Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
   titleCase, useConfirm, useToast,
@@ -16,35 +17,13 @@ import {
 function CareSheet({ open, onClose, item, onSaved }) {
   const meta = useMeta()
   const toast = useToast()
-  const [form, setForm] = useState(() => ({
-    wash_temp: item.care?.wash_temp ?? '',
-    wash_cycle: item.care?.wash_cycle ?? '',
-    hand_wash_only: item.care?.hand_wash_only ?? false,
-    do_not_wash: item.care?.do_not_wash ?? false,
-    tumble_dry: item.care?.tumble_dry ?? '',
-    iron_temp: item.care?.iron_temp ?? '',
-    bleach: item.care?.bleach ?? '',
-    dry_clean: item.care?.dry_clean ?? '',
-    colour_group: item.care?.colour_group ?? '',
-    notes: item.care?.notes ?? '',
-  }))
+  const [form, setForm] = useState(() => careFormState(item.care))
   const [busy, setBusy] = useState(false)
-  const labelRef = useRef(null)
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value })
 
   const save = async () => {
     setBusy(true)
     try {
-      await api.putCare(item.id, {
-        ...form,
-        wash_temp: form.wash_temp === '' ? null : Number(form.wash_temp),
-        wash_cycle: form.wash_cycle || null,
-        tumble_dry: form.tumble_dry || null,
-        iron_temp: form.iron_temp || null,
-        bleach: form.bleach || null,
-        dry_clean: form.dry_clean || null,
-        colour_group: form.colour_group || null,
-      })
+      await api.putCare(item.id, careFormPayload(form))
       toast('Care instructions saved.', 'success')
       onSaved()
       onClose()
@@ -61,15 +40,6 @@ function CareSheet({ open, onClose, item, onSaved }) {
     } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
   }
 
-  const Sel = ({ k, options, label }) => (
-    <Field label={label}>
-      <select className="select" value={form[k]} onChange={set(k)}>
-        <option value="">Not set</option>
-        {options.map((o) => <option key={o} value={o}>{titleCase(o)}</option>)}
-      </select>
-    </Field>
-  )
-
   return (
     <Modal open={open} onClose={onClose} title="Care instructions" wide
       footer={<>
@@ -78,52 +48,7 @@ function CareSheet({ open, onClose, item, onSaved }) {
           {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
         </button>
       </>}>
-      <div className="space-y-4">
-        <input ref={labelRef} type="file" accept="image/*" capture="environment" className="hidden"
-               onChange={(e) => e.target.files?.[0] && scanLabel(e.target.files[0])} />
-        <button className="card flex w-full items-center gap-3 border-dashed px-4 py-3"
-                onClick={() => labelRef.current?.click()} disabled={busy}>
-          <span className="rounded-full p-2" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-            <Icon name="sparkle" size={18} />
-          </span>
-          <span className="text-left">
-            <span className="block text-sm font-semibold">Photograph the care label</span>
-            <span className="block text-xs" style={{ color: 'var(--muted)' }}>
-              AI reads the symbols and fills this in. Needs a provider set up.
-            </span>
-          </span>
-        </button>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Wash temperature">
-            <select className="select" value={form.wash_temp} onChange={set('wash_temp')}>
-              <option value="">Not set</option>
-              {[30, 40, 60, 95].map((t) => <option key={t} value={t}>{t}°C</option>)}
-            </select>
-          </Field>
-          <Sel k="wash_cycle" label="Cycle" options={meta.wash_cycles || []} />
-          <Sel k="tumble_dry" label="Tumble dry" options={meta.tumble_dry || []} />
-          <Sel k="iron_temp" label="Iron" options={meta.iron_temp || []} />
-          <Sel k="bleach" label="Bleach" options={meta.bleach || []} />
-          <Sel k="dry_clean" label="Dry clean" options={meta.dry_clean || []} />
-          <Sel k="colour_group" label="Laundry pile" options={meta.colour_groups || []} />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Chip active={form.hand_wash_only}
-                onClick={() => setForm({ ...form, hand_wash_only: !form.hand_wash_only })}>
-            Hand wash only
-          </Chip>
-          <Chip active={form.do_not_wash}
-                onClick={() => setForm({ ...form, do_not_wash: !form.do_not_wash })}>
-            Do not wash
-          </Chip>
-        </div>
-
-        <Field label="Notes">
-          <textarea className="textarea" rows={2} value={form.notes} onChange={set('notes')} />
-        </Field>
-      </div>
+      <CareForm form={form} setForm={setForm} meta={meta} onScan={scanLabel} busy={busy} />
     </Modal>
   )
 }

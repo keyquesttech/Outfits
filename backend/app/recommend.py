@@ -319,6 +319,11 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
                 chosen.append(outer)
         if accessories and random.random() < 0.45:
             pool = [a for a in accessories if int(a.get("warmth") or 0) <= 1 or warm_ok]
+            # A belt is pointless with elasticated joggers, and looks wrong with a
+            # dress, so it only joins an outfit whose bottom half accepts one.
+            belted = next((c for c in chosen if c.get("layer") == "bottom"), None)
+            if not belted or not belted.get("takes_belt", True):
+                pool = [a for a in pool if a.get("category") != "belt"]
             if pool:
                 chosen.append(random.choice(pool))
         if jewellery and random.random() < 0.4:

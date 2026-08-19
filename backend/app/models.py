@@ -10,6 +10,7 @@ class ItemIn(BaseModel):
     pattern: str | None = None
     fit: str | None = None
     damage: str = "none"
+    takes_belt: bool = True
     colour_primary: str | None = None
     colour_secondary: str | None = None
     warmth: int = Field(default=5, ge=0, le=10)
@@ -31,6 +32,7 @@ class ItemPatch(BaseModel):
     pattern: str | None = None
     fit: str | None = None
     damage: str | None = None
+    takes_belt: bool | None = None
     colour_primary: str | None = None
     colour_secondary: str | None = None
     warmth: int | None = Field(default=None, ge=0, le=10)

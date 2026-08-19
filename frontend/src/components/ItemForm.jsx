@@ -1,4 +1,40 @@
+import { useId } from 'react'
+import { api } from '../api.js'
+import { useAsync } from '../hooks.js'
 import { Chip, Field, Icon, titleCase } from './ui.jsx'
+
+/**
+ * Capitalise the first letter of every word as it is typed.
+ *
+ * Only the character after a space is touched, so anything already typed in the
+ * middle of a word survives — "McQueen" and "adidas Originals" are not mangled.
+ */
+export const autoCapitalise = (value) =>
+  String(value ?? '').replace(/(^|\s)(\S)/g, (_, gap, ch) => gap + ch.toUpperCase())
+
+/** Text input that capitalises words and offers what has been typed before. */
+function TextField({ label, hint, value, onChange, options = [], capitalise = true, ...rest }) {
+  const listId = useId()
+  const hasOptions = options.length > 0
+  return (
+    <Field label={label} hint={hint}>
+      <input
+        className="input"
+        value={value}
+        list={hasOptions ? listId : undefined}
+        autoCapitalize={capitalise ? 'words' : 'off'}
+        autoComplete="off"
+        onChange={(e) => onChange(capitalise ? autoCapitalise(e.target.value) : e.target.value)}
+        {...rest}
+      />
+      {hasOptions && (
+        <datalist id={listId}>
+          {options.map((o) => <option key={o} value={o} />)}
+        </datalist>
+      )}
+    </Field>
+  )
+}
 
 /** Initial form state for an item, used by both editing and first-time tagging. */
 export function itemFormState(item = {}) {
@@ -10,6 +46,7 @@ export function itemFormState(item = {}) {
     material: item.material || '',
     pattern: item.pattern || '',
     fit: item.fit || '',
+    takes_belt: item.takes_belt ?? true,
     damage: item.damage || 'none',
     colour_primary: item.colour_primary || '',
     colour_secondary: item.colour_secondary || '',
@@ -151,15 +188,22 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
 
   const warmths = warmthOptions(meta, form.category)
   const fits = meta.fit_options?.[form.category] || []
+  const beltRelevant = (meta.belt_categories || []).includes(form.category)
+  // What has been typed into these fields before, offered as you type.
+  // useAsync starts at null, and a destructuring default only covers undefined,
+  // so the fallback has to be an explicit `|| {}`.
+  const fieldValues = useAsync(() => api.fieldValues(), [])
+  const known = fieldValues.data || {}
   const formalities = (meta.formality_levels || [])
   const suggestedWash = meta.default_wash_after_wears?.[form.category]
 
   return (
     <div className="space-y-4">
-      <Field label="Name">
-        <input className="input" value={form.name} onChange={set('name')}
-               placeholder="Navy merino crew jumper" autoFocus />
-      </Field>
+      <TextField
+        label="Name" value={form.name} options={known.name}
+        onChange={(v) => setForm({ ...form, name: v })}
+        placeholder="Navy Merino Crew Jumper" autoFocus
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Category">
@@ -169,17 +213,18 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
             ))}
           </select>
         </Field>
-        <Field label="Subcategory">
-          <input className="input" value={form.subcategory} onChange={set('subcategory')}
-                 placeholder="crew neck" />
-        </Field>
-        <Field label="Brand">
-          <input className="input" value={form.brand} onChange={set('brand')} />
-        </Field>
-        <Field label="Material">
-          <input className="input" value={form.material} onChange={set('material')}
-                 placeholder="merino wool" />
-        </Field>
+        <TextField
+          label="Subcategory" value={form.subcategory} options={known.subcategory}
+          onChange={(v) => setForm({ ...form, subcategory: v })} placeholder="Crew Neck"
+        />
+        <TextField
+          label="Brand" value={form.brand} options={known.brand}
+          onChange={(v) => setForm({ ...form, brand: v })}
+        />
+        <TextField
+          label="Material" value={form.material} options={known.material}
+          onChange={(v) => setForm({ ...form, material: v })} placeholder="Merino Wool"
+        />
       </div>
 
       {palette?.length > 0 && (
@@ -188,7 +233,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
             {palette.map((c, i) => (
               <button
                 key={i} type="button"
-                onClick={() => setForm({ ...form, colour_primary: c.name })}
+                onClick={() => setForm({ ...form, colour_primary: autoCapitalise(c.name) })}
                 className="chip"
                 style={form.colour_primary === c.name
                   ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
@@ -203,13 +248,14 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Primary colour">
-          <input className="input" value={form.colour_primary} onChange={set('colour_primary')} />
-        </Field>
-        <Field label="Secondary colour">
-          <input className="input" value={form.colour_secondary}
-                 onChange={set('colour_secondary')} />
-        </Field>
+        <TextField
+          label="Primary colour" value={form.colour_primary} options={known.colour_primary}
+          onChange={(v) => setForm({ ...form, colour_primary: v })}
+        />
+        <TextField
+          label="Secondary colour" value={form.colour_secondary} options={known.colour_secondary}
+          onChange={(v) => setForm({ ...form, colour_secondary: v })}
+        />
       </div>
 
       <Field label="Pattern">
@@ -269,7 +315,19 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         </div>
       </Field>
 
-      <div className="flex flex-wrap gap-2">
+      {beltRelevant && (
+        <Field
+          label="Belt"
+          hint="Turn this off for elasticated or drawstring bottoms — the outfit builder will not put a belt with them."
+        >
+          <Chip active={form.takes_belt}
+                onClick={() => setForm({ ...form, takes_belt: !form.takes_belt })}>
+            {form.takes_belt ? 'Takes a belt' : 'No belt'}
+          </Chip>
+        </Field>
+      )}
+
+      <div className="rail">
         <Chip active={form.water_proof}
               onClick={() => setForm({ ...form, water_proof: !form.water_proof })}>
           <Icon name="drop" size={13} /> Waterproof

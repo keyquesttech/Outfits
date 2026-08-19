@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS items (
   pattern           TEXT,
   fit               TEXT,
   damage            TEXT NOT NULL DEFAULT 'none',
+  takes_belt        INTEGER NOT NULL DEFAULT 1,
   colour_primary    TEXT,
   colour_secondary  TEXT,
   colour_palette    TEXT,

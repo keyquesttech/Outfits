@@ -26,7 +26,12 @@ material, pattern, warmth and formality for you to confirm, and needs a Gemini k
 field stays editable afterwards either way.
 
 Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
-loose, oversized and so on, chosen per category.
+loose, oversized and so on, chosen per category. Bottoms carry a **belt** toggle: turn it
+off for elasticated or drawstring trousers and the builder will not put a belt with them.
+
+Text fields capitalise each word as you type and offer what you have entered before, so a
+brand only has to be typed once. Tagging an item runs straight into its washing and care
+details, since that is what sorts it into the right laundry load later.
 
 Warmth is **Cold / Neutral / Hot**, formality is **Casual / Informal / Formal**, and
 damage is **None / Mild / Bad** — three buttons each rather than a slider. Damage is about

@@ -101,6 +101,14 @@ DAMAGE_LEVELS = [
 ]
 DAMAGE_KEYS = [d["key"] for d in DAMAGE_LEVELS]
 
+# Only trousers meaningfully take a belt, so the toggle is offered there. The
+# outfit builder uses it to avoid pairing a belt with elasticated joggers.
+BELT_CATEGORIES = {"bottom"}
+
+# Free-text fields worth remembering, so typing a brand once is enough.
+SUGGESTABLE_FIELDS = ["brand", "material", "subcategory",
+                      "colour_primary", "colour_secondary", "name"]
+
 # Suggested tags offered as one-tap chips. Free-text tags still work.
 SUGGESTED_TAGS = ["favourite", "logo", "smart", "comfy", "work", "gym",
                   "going out", "layering", "holiday"]

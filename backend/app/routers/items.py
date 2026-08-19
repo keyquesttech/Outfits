@@ -2,11 +2,11 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from .. import config, db, images, jobs, wash
 from ..constants import (
-    BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DAMAGE_KEYS, DAMAGE_LEVELS,
-    DEFAULT_FORMALITY, DEFAULT_WARMTH,
-    DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER,
-    FIT_OPTIONS, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
-    WARMTH_LEVELS, WASH_CYCLES,
+    BELT_CATEGORIES, BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS,
+    DAMAGE_KEYS, DAMAGE_LEVELS, DEFAULT_FORMALITY, DEFAULT_WARMTH,
+    DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FIT_OPTIONS, FORMALITY_LEVELS, IRON_TEMP,
+    LAYER_ORDER, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTABLE_FIELDS,
+    SUGGESTED_TAGS, TUMBLE_DRY, WARMTH_LEVELS, WASH_CYCLES,
 )
 from ..models import CareIn, ItemIn, ItemPatch, StatusIn
 from ..serializers import care_out, item_out
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api", tags=["items"])
 ITEM_COLUMNS = {
     "name", "category", "subcategory", "brand", "material", "pattern",
     "colour_primary", "colour_secondary", "warmth", "formality", "seasons",
-    "wind_proof", "water_proof", "fit", "damage",
+    "wind_proof", "water_proof", "fit", "damage", "takes_belt",
     "wash_after_wears", "status", "notes", "is_active", "colour_palette",
     "image_path", "thumb_path", "cutout_path",
 }
@@ -42,6 +42,7 @@ def meta():
         "default_formality": DEFAULT_FORMALITY,
         "patterns": PATTERNS,
         "damage_levels": DAMAGE_LEVELS,
+        "belt_categories": sorted(BELT_CATEGORIES),
         "fit_options": FIT_OPTIONS,
         "suggested_tags": SUGGESTED_TAGS,
         "warmth_levels": WARMTH_LEVELS,
@@ -171,14 +172,14 @@ def create_item(payload: ItemIn):
         raise HTTPException(400, f"Unknown category: {payload.category}")
     item_id = db.execute(
         "INSERT INTO items(name, category, subcategory, brand, material, pattern, fit, "
-        "damage, colour_primary, colour_secondary, warmth, formality, seasons, wind_proof, "
-        "water_proof, wash_after_wears, notes) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "damage, takes_belt, colour_primary, colour_secondary, warmth, formality, seasons, "
+        "wind_proof, water_proof, wash_after_wears, notes) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             payload.name, payload.category, payload.subcategory, payload.brand,
             payload.material, payload.pattern, payload.fit,
             payload.damage if payload.damage in DAMAGE_KEYS else "none",
-            payload.colour_primary,
+            int(payload.takes_belt), payload.colour_primary,
             payload.colour_secondary, payload.warmth, payload.formality,
             db.dumps(payload.seasons or []), int(payload.wind_proof),
             int(payload.water_proof),
@@ -265,7 +266,7 @@ def update_item(item_id: int, payload: ItemPatch):
             continue
         if key == "seasons":
             updates[key] = db.dumps(value or [])
-        elif key in ("wind_proof", "water_proof", "is_active"):
+        elif key in ("wind_proof", "water_proof", "is_active", "takes_belt"):
             updates[key] = int(bool(value))
         else:
             updates[key] = value
@@ -351,6 +352,24 @@ def analyse(item_id: int, kind: str = Query("analyse_item", pattern="^(analyse_i
     if db.get_setting("ai_provider", "none") == "none":
         raise HTTPException(400, "No AI provider configured")
     return {"job_id": jobs.enqueue(kind, item_id), "status": "queued"}
+
+
+@router.get("/field-values")
+def field_values(limit: int = Query(40, ge=1, le=200)):
+    """Distinct values already used in each free-text field, commonest first.
+
+    Feeds the type-ahead on the item form so a brand only has to be typed once.
+    """
+    out: dict[str, list[str]] = {}
+    for field in SUGGESTABLE_FIELDS:
+        rows = db.query(
+            f"SELECT {field} AS value, COUNT(*) AS uses FROM items "
+            f"WHERE {field} IS NOT NULL AND TRIM({field}) != '' "
+            "GROUP BY LOWER(TRIM(value)) ORDER BY uses DESC, value COLLATE NOCASE LIMIT ?",
+            (limit,),
+        )
+        out[field] = [r["value"] for r in rows]
+    return out
 
 
 @router.get("/tags")
