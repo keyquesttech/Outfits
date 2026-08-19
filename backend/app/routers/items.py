@@ -62,6 +62,29 @@ def _set_tags(item_id: int, tags: list[str] | None) -> None:
                        (item_id, row["id"]))
 
 
+def _set_categories(item_id: int, primary: str, extras: list[str] | None) -> None:
+    """Store the extra categories an item also counts as.
+
+    The primary is never duplicated in here; it lives on items.category and is
+    what decides the item's layer and defaults.
+    """
+    if extras is None:
+        return
+    db.execute("DELETE FROM item_categories WHERE item_id = ?", (item_id,))
+    wanted = {c for c in extras if c in CATEGORIES and c != primary}
+    db.executemany(
+        "INSERT OR IGNORE INTO item_categories(item_id, category) VALUES (?,?)",
+        [(item_id, c) for c in sorted(wanted)],
+    )
+
+
+def _categories_for(item_id: int, primary: str) -> list[str]:
+    extra = [r["category"] for r in db.query(
+        "SELECT category FROM item_categories WHERE item_id = ? ORDER BY category", (item_id,)
+    )]
+    return [primary] + [c for c in extra if c != primary]
+
+
 def _tags_for(item_id: int) -> list[str]:
     return [r["name"] for r in db.query(
         "SELECT tags.name FROM tags JOIN item_tags ON tags.id = item_tags.tag_id "
@@ -71,6 +94,8 @@ def _tags_for(item_id: int) -> list[str]:
 
 def _hydrate(row: dict) -> dict:
     item = item_out(row)
+    item["categories"] = _categories_for(item["id"], item["category"])
+    item["extra_categories"] = item["categories"][1:]
     item["tags"] = _tags_for(item["id"])
     item["care"] = care_out(db.query_one(
         "SELECT * FROM care_instructions WHERE item_id = ?", (item["id"],)
@@ -104,8 +129,13 @@ def list_items(
     if not include_inactive:
         where.append("items.is_active = 1")
     if category:
-        where.append("items.category = ?")
-        params.append(category)
+        # Match the primary or any extra category, so a pair of joggers filed as
+        # both bottom and pyjamas turns up under either.
+        where.append(
+            "(items.category = ? OR EXISTS (SELECT 1 FROM item_categories ic "
+            "WHERE ic.item_id = items.id AND ic.category = ?))"
+        )
+        params += [category, category]
     if status:
         where.append("items.status = ?")
         params.append(status)
@@ -131,7 +161,12 @@ def list_items(
     sql += f" ORDER BY {order} LIMIT ?"
     params.append(limit)
 
-    items = [item_out(r) for r in db.query(sql, tuple(params))]
+    items = []
+    for r in db.query(sql, tuple(params)):
+        item = item_out(r)
+        item["categories"] = _categories_for(item["id"], item["category"])
+        item["extra_categories"] = item["categories"][1:]
+        items.append(item)
     if layer:
         items = [i for i in items if i["layer"] == layer]
     if needs_wash is not None:
@@ -187,6 +222,7 @@ def create_item(payload: ItemIn):
             payload.notes,
         ),
     )
+    _set_categories(item_id, payload.category, payload.categories)
     _set_tags(item_id, payload.tags)
     return _hydrate(db.query_one("SELECT * FROM items WHERE id = ?", (item_id,)))
 
@@ -260,6 +296,7 @@ def update_item(item_id: int, payload: ItemPatch):
 
     fields = payload.model_dump(exclude_unset=True)
     tags = fields.pop("tags", None)
+    extra_categories = fields.pop("categories", None)
     updates: dict = {}
     for key, value in fields.items():
         if key not in ITEM_COLUMNS:
@@ -283,6 +320,7 @@ def update_item(item_id: int, payload: ItemPatch):
         db.execute(f"UPDATE items SET {sets}, updated_at = datetime('now') WHERE id = ?",
                    (*updates.values(), item_id))
     _set_tags(item_id, tags)
+    _set_categories(item_id, updates.get("category", row["category"]), extra_categories)
     if {"category", "wash_after_wears"} & set(updates):
         wash.refresh_status(item_id)
     return _hydrate(db.query_one("SELECT * FROM items WHERE id = ?", (item_id,)))

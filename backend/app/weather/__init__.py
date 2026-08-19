@@ -15,7 +15,9 @@ PROVIDERS = {
     metoffice.NAME: metoffice,
 }
 
-DEFAULT_TTL = 1800
+# One automatic call every five hours, whichever provider is selected. Pressing
+# refresh forces a fetch regardless.
+DEFAULT_TTL = 5 * 3600
 
 _cache: dict = {"at": 0.0, "key": None, "data": None}
 
@@ -62,7 +64,8 @@ def usage() -> dict:
     optimize = db.get_setting("metoffice_optimize", "1") != "0"
     ttl = metoffice.FREE_TTL if optimize else metoffice.NORMAL_TTL
     per_refresh = 1 if optimize else 2
-    projected = round((86400 / ttl) * per_refresh * 30)
+    per_day = 86400 / ttl
+    projected = round(per_day * per_refresh * 30)
     return {
         "month": month,
         "calls": calls,
@@ -70,10 +73,11 @@ def usage() -> dict:
         "cache_ttl_seconds": ttl,
         "calls_per_refresh": per_refresh,
         "projected_monthly_calls": projected,
+        "refresh_hours": round(ttl / 3600, 1),
         "note": (
-            f"At most one refresh every {ttl // 3600} h, "
+            f"One refresh every {ttl // 3600} h, "
             f"{per_refresh} call{'s' if per_refresh > 1 else ''} each — "
-            f"about {projected} calls a month."
+            f"about {projected} calls a month. Pressing refresh fetches immediately."
         ),
     }
 

@@ -359,6 +359,12 @@ export default function ItemDetail() {
                   {titleCase(item.fit)} fit
                 </span>
               )}
+              {(item.extra_categories || []).map((c) => (
+                <span key={c} className="chip"
+                      style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                  Also {titleCase(c)}
+                </span>
+              ))}
               {item.water_proof && <span className="chip">Waterproof</span>}
               {item.wind_proof && <span className="chip">Windproof</span>}
               {item.seasons?.map((s) => <span key={s} className="chip">{titleCase(s)}</span>)}

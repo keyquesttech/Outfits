@@ -113,6 +113,16 @@ CREATE TABLE IF NOT EXISTS wash_batch_items (
 );
 CREATE INDEX IF NOT EXISTS idx_wash_batch_items_item ON wash_batch_items(item_id);
 
+-- Extra categories an item also counts as, beyond items.category. The primary
+-- one still decides its layer, wash defaults and how the outfit builder uses it,
+-- because a garment can only occupy one slot in an outfit at a time.
+CREATE TABLE IF NOT EXISTS item_categories (
+  item_id  INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  PRIMARY KEY (item_id, category)
+);
+CREATE INDEX IF NOT EXISTS idx_item_categories_cat ON item_categories(category);
+
 CREATE TABLE IF NOT EXISTS tags (
   id   INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE

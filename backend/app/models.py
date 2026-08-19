@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class ItemIn(BaseModel):
     name: str = "Untitled item"
     category: str = "top"
+    categories: list[str] | None = None
     subcategory: str | None = None
     brand: str | None = None
     material: str | None = None
@@ -26,6 +27,7 @@ class ItemIn(BaseModel):
 class ItemPatch(BaseModel):
     name: str | None = None
     category: str | None = None
+    categories: list[str] | None = None
     subcategory: str | None = None
     brand: str | None = None
     material: str | None = None

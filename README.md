@@ -28,6 +28,11 @@ detected colours offered as one-tap choices. *Let AI tag them* fills in category
 material, pattern, warmth and formality for you to confirm, and needs a Gemini key. Every
 field stays editable afterwards either way.
 
+An item can sit in **more than one category** — joggers filed as both Bottom and Pyjamas
+turn up under either filter. The main category still decides the layer, the wash default
+and how the outfit builder uses it, since a garment can only fill one slot in an outfit at
+a time; the extras are for finding things.
+
 Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
 loose, oversized and so on, chosen per category. Bottoms carry a **belt** toggle: turn it
 off for elasticated or drawstring trousers and the builder will not put a belt with them.
@@ -49,10 +54,12 @@ feels-like temperature, plus rain, wind, occasion and colour harmony. Every sugg
 shows its reasoning, so a bad suggestion tells you which dial to turn.
 
 **Two forecast sources.** Open-Meteo (free, keyless, global) or the Met Office DataHub
-Site Specific API for the UK. Met Office needs a free API key, and there is a
-one-tick **Optimise for the free plan** mode: it makes a single three-hourly request per
-refresh instead of two and caches for three hours, which works out at roughly 240 calls a
-month rather than 2,880. Usage is counted and shown in Settings.
+Site Specific API for the UK. Met Office needs a free API key.
+
+The forecast refreshes **once every five hours** — about five calls a day, roughly 144 a
+month with **Optimise for the free plan** on, which uses a single three-hourly request
+instead of two. Pressing refresh on the Today page fetches immediately regardless. Usage
+is counted and shown in Settings.
 
 **Severe weather warnings.** Met Office warnings shown on the Today page, deliberately
 narrow: only while the Met Office is the selected forecast source, only for the region

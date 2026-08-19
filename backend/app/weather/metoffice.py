@@ -23,10 +23,13 @@ NAME = "metoffice"
 LABEL = "Met Office"
 NEEDS_KEY = True
 
-# Free plan is a daily request allowance plus a monthly data volume. Caching is
-# what keeps usage negligible: at a 3-hour TTL this makes 8 calls a day.
-FREE_TTL = 3 * 3600
-NORMAL_TTL = 1800
+# Free plan is a daily request allowance plus a monthly data volume, and caching
+# is what keeps usage negligible. One refresh every five hours is about five
+# calls a day; the refresh button on the Today page bypasses the cache whenever
+# you actually want the latest reading.
+REFRESH_SECONDS = 5 * 3600
+FREE_TTL = REFRESH_SECONDS
+NORMAL_TTL = REFRESH_SECONDS
 
 
 class MetOfficeError(RuntimeError):

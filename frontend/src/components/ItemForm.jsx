@@ -71,6 +71,7 @@ export function itemFormState(item = {}) {
   return {
     name: item.name || '',
     category: item.category || 'top',
+    categories: item.extra_categories || [],
     subcategory: item.subcategory || '',
     brand: item.brand || '',
     material: item.material || '',
@@ -99,6 +100,7 @@ export function itemFormPayload(form) {
     formality: Number(form.formality),
     wash_after_wears: form.wash_after_wears === '' ? null : Number(form.wash_after_wears),
     tags: parseTags(form.tags),
+    categories: (form.categories || []).filter((c) => c !== form.category),
   }
 }
 
@@ -243,6 +245,27 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
             ))}
           </select>
         </Field>
+        <Field
+          label="Also counts as"
+          hint="Optional. The main category above still decides the layer and how outfits are built — this just files it in more than one place."
+        >
+          <div className="rail">
+            {(meta.categories || []).filter((c) => c !== form.category).map((c) => {
+              const on = (form.categories || []).includes(c)
+              return (
+                <Chip key={c} active={on} onClick={() => setForm({
+                  ...form,
+                  categories: on
+                    ? form.categories.filter((x) => x !== c)
+                    : [...(form.categories || []), c],
+                })}>
+                  {titleCase(c)}
+                </Chip>
+              )
+            })}
+          </div>
+        </Field>
+
         <TextField
           label="Subcategory" value={form.subcategory} options={known.subcategory}
           onChange={(v) => setForm({ ...form, subcategory: v })} placeholder="Crew Neck"
