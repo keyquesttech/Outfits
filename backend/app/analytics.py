@@ -12,7 +12,6 @@ def summary() -> dict:
         "SELECT COUNT(*) AS total, "
         "SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active, "
         "SUM(CASE WHEN status IN ('needs_wash','in_wash') THEN 1 ELSE 0 END) AS dirty, "
-        "SUM(COALESCE(price, 0)) AS value, "
         "SUM(total_wears) AS wears FROM items"
     ) or {}
     by_category = db.query(
@@ -25,15 +24,12 @@ def summary() -> dict:
     outfits = db.query_one("SELECT COUNT(*) AS count FROM outfits") or {}
     logs = db.query_one("SELECT COUNT(*) AS count FROM wear_log") or {}
     washes = db.query_one("SELECT COUNT(*) AS count FROM wash_batches") or {}
-    value = totals.get("value") or 0
     wears = totals.get("wears") or 0
     return {
         "total_items": totals.get("total") or 0,
         "active_items": totals.get("active") or 0,
         "dirty_items": totals.get("dirty") or 0,
-        "wardrobe_value": round(value, 2),
         "total_wears": wears,
-        "avg_cost_per_wear": round(value / wears, 2) if value and wears else None,
         "outfits": outfits.get("count") or 0,
         "wear_logs": logs.get("count") or 0,
         "wash_loads": washes.get("count") or 0,
@@ -67,15 +63,6 @@ def neglected(days: int = 90, limit: int = 20) -> list[dict]:
         (cutoff, limit),
     )
     return [item_out(r) for r in rows]
-
-
-def cost_per_wear(limit: int = 10, best: bool = True) -> list[dict]:
-    rows = db.query(
-        "SELECT * FROM items WHERE is_active = 1 AND price > 0 AND total_wears > 0"
-    )
-    items = [item_out(r) for r in rows]
-    items.sort(key=lambda i: i["cost_per_wear"] or 0, reverse=not best)
-    return items[:limit]
 
 
 def colour_distribution() -> list[dict]:
@@ -194,8 +181,6 @@ def full_report() -> dict:
         "most_worn": most_worn(),
         "least_worn": least_worn(),
         "neglected": neglected(),
-        "best_value": cost_per_wear(best=True),
-        "worst_value": cost_per_wear(best=False),
         "colours": colour_distribution(),
         "combinations": top_combinations(),
         "timeline": wear_timeline(),

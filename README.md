@@ -20,6 +20,9 @@ detected colours offered as one-tap choices. *Let AI tag them* fills in category
 material, pattern, warmth and formality for you to confirm, and needs a Gemini key. Every
 field stays editable afterwards either way.
 
+Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
+loose, oversized and so on, chosen per category.
+
 Warmth is **Cold / Neutral / Hot** and formality is **Casual / Informal / Formal** — three
 buttons each rather than a slider. Underneath, warmth is still a 0-10 number because the
 recommender adds it up and compares the total against a temperature, and the three buttons
@@ -63,8 +66,8 @@ metal rather than as a clashing colour.
 how you rated it. Any entry can be deleted, which puts the wear counters back — including
 progress towards the next wash.
 
-**Analytics.** Most and least worn, cost per wear, things untouched for 90 days, colour
-distribution, repeated pairings, laundry history, and gaps limiting your suggestions.
+**Analytics.** Most and least worn, things untouched for 90 days, colour distribution,
+repeated pairings, laundry history, and gaps limiting your suggestions.
 
 **AI is entirely optional.** Choose "No AI" and everything above still works except
 automatic tagging and care-label reading.

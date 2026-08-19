@@ -61,6 +61,18 @@ DEFAULT_WARMTH = {
 
 STATUSES = ["clean", "worn", "needs_wash", "airing", "in_wash"]
 
+# How a garment sits on you. Only offered for the categories where it is a real
+# distinction — a sock has no fit worth recording.
+FIT_OPTIONS = {
+    "bottom": ["skinny", "regular", "loose", "oversized"],
+    "shirt": ["slim", "regular", "loose", "oversized"],
+    "top": ["slim", "regular", "loose", "oversized"],
+    "dress": ["fitted", "regular", "loose", "oversized"],
+    "knitwear": ["slim", "regular", "loose", "oversized"],
+    "mid": ["slim", "regular", "loose", "oversized"],
+    "outerwear": ["fitted", "regular", "loose", "oversized"],
+}
+
 PATTERNS = ["plain", "stripe", "check", "floral", "print", "logo", "knit", "herringbone"]
 
 # Suggested tags offered as one-tap chips. Free-text tags still work.

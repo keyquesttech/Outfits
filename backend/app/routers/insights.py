@@ -35,12 +35,6 @@ def combinations(limit: int = 10):
     return {"combinations": analytics.top_combinations(limit)}
 
 
-@router.get("/value")
-def value(limit: int = 10):
-    return {"best": analytics.cost_per_wear(limit, best=True),
-            "worst": analytics.cost_per_wear(limit, best=False)}
-
-
 @router.get("/wash")
 def wash_stats():
     return analytics.wash_stats()

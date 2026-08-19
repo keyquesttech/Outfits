@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { Icon, Spinner, ToastHost } from './components/ui.jsx'
+import { ConfirmHost, Icon, Spinner, ToastHost } from './components/ui.jsx'
 import { useAsync } from './hooks.js'
 import { api } from './api.js'
 
@@ -29,7 +29,7 @@ function TopBar() {
       className="sticky top-0 z-30 border-b backdrop-blur"
       style={{ background: 'color-mix(in srgb, var(--bg) 88%, transparent)', borderColor: 'var(--border)' }}
     >
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
+      <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 px-[var(--page-pad)] py-3">
         <NavLink to="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg"
                 style={{ background: 'var(--accent)', color: '#fff' }}>
@@ -38,7 +38,7 @@ function TopBar() {
           <span className="text-lg font-bold tracking-tight">Outfits</span>
         </NavLink>
 
-        <nav className="ml-4 hidden items-center gap-1 md:flex">
+        <nav className="ml-4 hidden items-center gap-1 lg:flex">
           {NAV.map((n) => (
             <NavLink
               key={n.to} to={n.to} end={n.end}
@@ -65,7 +65,7 @@ function BottomNav() {
   const { pathname } = useLocation()
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
       style={{
         background: 'color-mix(in srgb, var(--bg) 94%, transparent)',
         borderColor: 'var(--border)',
@@ -106,8 +106,9 @@ export default function App() {
   return (
     <MetaCtx.Provider value={meta || {}}>
       <ToastHost>
+        <ConfirmHost>
         <TopBar />
-        <main className="safe-bottom mx-auto max-w-6xl px-4 py-5 md:pb-10">
+        <main className="safe-bottom mx-auto w-full max-w-[100rem] px-[var(--page-pad)] py-5 lg:pb-10">
           <Routes>
             <Route path="/" element={<Today />} />
             <Route path="/wardrobe" element={<Wardrobe />} />
@@ -120,6 +121,7 @@ export default function App() {
           </Routes>
         </main>
         <BottomNav />
+        </ConfirmHost>
       </ToastHost>
     </MetaCtx.Provider>
   )

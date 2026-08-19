@@ -9,6 +9,7 @@ export function itemFormState(item = {}) {
     brand: item.brand || '',
     material: item.material || '',
     pattern: item.pattern || '',
+    fit: item.fit || '',
     colour_primary: item.colour_primary || '',
     colour_secondary: item.colour_secondary || '',
     warmth: item.warmth ?? 5,
@@ -16,8 +17,6 @@ export function itemFormState(item = {}) {
     seasons: item.seasons || [],
     wind_proof: !!item.wind_proof,
     water_proof: !!item.water_proof,
-    price: item.price ?? '',
-    purchase_date: item.purchase_date || '',
     wash_after_wears: item.wash_after_wears ?? '',
     notes: item.notes || '',
     tags: (item.tags || []).join(', '),
@@ -28,7 +27,6 @@ export function itemFormState(item = {}) {
 export function itemFormPayload(form) {
   return {
     ...form,
-    price: form.price === '' ? null : Number(form.price),
     warmth: Number(form.warmth),
     formality: Number(form.formality),
     wash_after_wears: form.wash_after_wears === '' ? null : Number(form.wash_after_wears),
@@ -120,6 +118,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
   }
 
   const warmths = warmthOptions(meta, form.category)
+  const fits = meta.fit_options?.[form.category] || []
   const formalities = (meta.formality_levels || [])
   const suggestedWash = meta.default_wash_after_wears?.[form.category]
 
@@ -153,7 +152,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
 
       {palette?.length > 0 && (
         <Field label="Colours found in the photo" hint="Tap one to set it as the main colour.">
-          <div className="flex flex-wrap gap-2">
+          <div className="rail">
             {palette.map((c, i) => (
               <button
                 key={i} type="button"
@@ -182,7 +181,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       </div>
 
       <Field label="Pattern">
-        <div className="flex flex-wrap gap-2">
+        <div className="rail">
           {(meta.patterns || []).map((p) => (
             <Chip key={p} active={form.pattern === p}
                   onClick={() => setForm({ ...form, pattern: form.pattern === p ? '' : p })}>
@@ -191,6 +190,19 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
           ))}
         </div>
       </Field>
+
+      {fits.length > 0 && (
+        <Field label="Fit">
+          <div className="rail">
+            {fits.map((f) => (
+              <Chip key={f} active={form.fit === f}
+                    onClick={() => setForm({ ...form, fit: form.fit === f ? '' : f })}>
+                {titleCase(f)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      )}
 
       <LevelPicker
         label="Warmth"
@@ -208,7 +220,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       />
 
       <Field label="Seasons">
-        <div className="flex flex-wrap gap-2">
+        <div className="rail">
           {(meta.seasons || []).map((s) => (
             <Chip key={s} active={form.seasons.includes(s)} onClick={() => toggleSeason(s)}>
               {titleCase(s)}
@@ -229,7 +241,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       </div>
 
       <Field label="Tags" hint="Tap the common ones, or type your own separated by commas.">
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="rail mb-2">
           {(meta.suggested_tags || []).map((t) => (
             <Chip key={t} active={tags.includes(t)} onClick={() => toggleTag(t)}>
               {titleCase(t)}
@@ -241,21 +253,11 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       </Field>
 
       {!compact && (
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Wash after (wears)"
-                 hint={`Default for ${titleCase(form.category)}: ${suggestedWash ?? '—'}`}>
-            <input className="input" type="number" min="0" value={form.wash_after_wears}
-                   onChange={set('wash_after_wears')} placeholder="use default" />
-          </Field>
-          <Field label="Price (£)">
-            <input className="input" type="number" step="0.01" value={form.price}
-                   onChange={set('price')} />
-          </Field>
-          <Field label="Bought on">
-            <input className="input" type="date" value={form.purchase_date}
-                   onChange={set('purchase_date')} />
-          </Field>
-        </div>
+        <Field label="Wash after (wears)"
+               hint={`Default for ${titleCase(form.category)}: ${suggestedWash ?? '—'}`}>
+          <input className="input" type="number" min="0" value={form.wash_after_wears}
+                 onChange={set('wash_after_wears')} placeholder="use default" />
+        </Field>
       )}
 
       {!compact && (

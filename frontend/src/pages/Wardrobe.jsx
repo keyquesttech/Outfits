@@ -11,7 +11,7 @@ import {
 
 const SORTS = [
   ['recent', 'Newest'], ['name', 'A–Z'], ['worn', 'Most worn'],
-  ['least_worn', 'Least worn'], ['value', 'Priciest'],
+  ['least_worn', 'Least worn'],
 ]
 
 /* ---------------------------------------------------------------- tagging */
@@ -309,7 +309,7 @@ export default function Wardrobe() {
       </div>
 
       <div className="space-y-2">
-        <div className="scroll-x flex gap-2">
+        <div className="rail">
           <Chip active={!category} onClick={() => setCategory('')}>All</Chip>
           {(meta.categories || []).map((c) => (
             <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? '' : c)}>
@@ -317,7 +317,7 @@ export default function Wardrobe() {
             </Chip>
           ))}
         </div>
-        <div className="scroll-x flex gap-2">
+        <div className="rail">
           <Chip active={!status} onClick={() => setStatus('')}>Any status</Chip>
           {(meta.statuses || []).map((s) => (
             <Chip key={s} active={status === s} onClick={() => setStatus(status === s ? '' : s)}>

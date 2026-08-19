@@ -5,7 +5,8 @@ import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  Chip, EmptyState, ErrorNote, Field, Icon, Modal, Section, Spinner, titleCase, useToast,
+  Chip, EmptyState, ErrorNote, Field, Icon, Modal, Section, Spinner, titleCase,
+  useConfirm, useToast,
 } from '../components/ui.jsx'
 
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
@@ -83,7 +84,7 @@ function Builder({ open, onClose, onSaved, existing }) {
           </div>
         )}
 
-        <div className="scroll-x flex gap-2">
+        <div className="rail">
           {(meta.layers || []).map((l) => (
             <Chip key={l} active={layer === l} onClick={() => setLayer(l)}>
               {titleCase(l)} {byLayer[l]?.length ? `(${byLayer[l].length})` : ''}
@@ -116,6 +117,7 @@ function Builder({ open, onClose, onSaved, existing }) {
 
 export default function Outfits() {
   const toast = useToast()
+  const confirm = useConfirm()
   const { data, loading, error, reload } = useAsync(() => api.outfits(), [])
   const [building, setBuilding] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -134,7 +136,12 @@ export default function Outfits() {
   }
 
   const remove = async (outfit) => {
-    if (!confirm(`Delete “${outfit.name}”?`)) return
+    const ok = await confirm({
+      title: 'Delete this outfit?',
+      body: `“${outfit.name}” will be removed.`,
+      detail: 'The items stay in your wardrobe; only the saved combination goes.',
+    })
+    if (!ok) return
     await api.deleteOutfit(outfit.id)
     toast('Outfit deleted.', 'success')
     reload(true)

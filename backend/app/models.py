@@ -8,6 +8,7 @@ class ItemIn(BaseModel):
     brand: str | None = None
     material: str | None = None
     pattern: str | None = None
+    fit: str | None = None
     colour_primary: str | None = None
     colour_secondary: str | None = None
     warmth: int = Field(default=5, ge=0, le=10)
@@ -15,9 +16,6 @@ class ItemIn(BaseModel):
     seasons: list[str] | None = None
     wind_proof: bool = False
     water_proof: bool = False
-    purchase_date: str | None = None
-    price: float | None = None
-    currency: str = "GBP"
     wash_after_wears: int | None = None
     notes: str | None = None
     tags: list[str] | None = None
@@ -30,6 +28,7 @@ class ItemPatch(BaseModel):
     brand: str | None = None
     material: str | None = None
     pattern: str | None = None
+    fit: str | None = None
     colour_primary: str | None = None
     colour_secondary: str | None = None
     warmth: int | None = Field(default=None, ge=0, le=10)
@@ -37,9 +36,6 @@ class ItemPatch(BaseModel):
     seasons: list[str] | None = None
     wind_proof: bool | None = None
     water_proof: bool | None = None
-    purchase_date: str | None = None
-    price: float | None = None
-    currency: str | None = None
     wash_after_wears: int | None = None
     status: str | None = None
     notes: str | None = None

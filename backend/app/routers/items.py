@@ -4,7 +4,7 @@ from .. import config, db, images, jobs, wash
 from ..constants import (
     BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DEFAULT_WARMTH,
     DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER,
-    NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
+    FIT_OPTIONS, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
     WARMTH_LEVELS, WASH_CYCLES,
 )
 from ..models import CareIn, ItemIn, ItemPatch, StatusIn
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api", tags=["items"])
 ITEM_COLUMNS = {
     "name", "category", "subcategory", "brand", "material", "pattern",
     "colour_primary", "colour_secondary", "warmth", "formality", "seasons",
-    "wind_proof", "water_proof", "purchase_date", "price", "currency",
+    "wind_proof", "water_proof", "fit",
     "wash_after_wears", "status", "notes", "is_active", "colour_palette",
     "image_path", "thumb_path", "cutout_path",
 }
@@ -39,6 +39,7 @@ def meta():
         "default_wash_after_wears": DEFAULT_WASH_AFTER_WEARS,
         "default_warmth": DEFAULT_WARMTH,
         "patterns": PATTERNS,
+        "fit_options": FIT_OPTIONS,
         "suggested_tags": SUGGESTED_TAGS,
         "warmth_levels": WARMTH_LEVELS,
         "formality_levels": FORMALITY_LEVELS,
@@ -84,7 +85,7 @@ def list_items(
     q: str | None = None,
     include_inactive: bool = False,
     needs_wash: bool | None = None,
-    sort: str = Query("recent", pattern="^(recent|name|worn|least_worn|value)$"),
+    sort: str = Query("recent", pattern="^(recent|name|worn|least_worn)$"),
     limit: int = Query(500, ge=1, le=2000),
 ):
     sql = "SELECT items.* FROM items"
@@ -122,7 +123,6 @@ def list_items(
         "name": "items.name COLLATE NOCASE",
         "worn": "items.total_wears DESC",
         "least_worn": "items.total_wears ASC",
-        "value": "items.price DESC",
     }[sort]
     sql += f" ORDER BY {order} LIMIT ?"
     params.append(limit)
@@ -167,17 +167,17 @@ def create_item(payload: ItemIn):
     if payload.category not in CATEGORIES:
         raise HTTPException(400, f"Unknown category: {payload.category}")
     item_id = db.execute(
-        "INSERT INTO items(name, category, subcategory, brand, material, pattern, "
+        "INSERT INTO items(name, category, subcategory, brand, material, pattern, fit, "
         "colour_primary, colour_secondary, warmth, formality, seasons, wind_proof, "
-        "water_proof, purchase_date, price, currency, wash_after_wears, notes) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "water_proof, wash_after_wears, notes) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             payload.name, payload.category, payload.subcategory, payload.brand,
-            payload.material, payload.pattern, payload.colour_primary,
+            payload.material, payload.pattern, payload.fit, payload.colour_primary,
             payload.colour_secondary, payload.warmth, payload.formality,
             db.dumps(payload.seasons or []), int(payload.wind_proof),
-            int(payload.water_proof), payload.purchase_date, payload.price,
-            payload.currency, _default_wash(payload.category, payload.wash_after_wears),
+            int(payload.water_proof),
+            _default_wash(payload.category, payload.wash_after_wears),
             payload.notes,
         ),
     )

@@ -20,33 +20,45 @@ from PIL import Image, ImageDraw, ImageFilter
 
 BACKDROP = (240, 238, 234)
 
-# name, category, rgb, shape, warmth, formality, seasons, price, extras
+# name, category, rgb, shape, warmth, formality, seasons, extras
 WARDROBE = [
-    ("White oxford shirt",     "shirt",     (248, 248, 244), "shirt",  3, 4, ["spring", "autumn"], 59, {}),
-    ("Pale blue oxford shirt", "shirt",     (176, 202, 230), "shirt",  3, 4, ["spring", "summer"], 59, {}),
-    ("Grey marl t-shirt",      "top",       (150, 148, 145), "tee",    2, 2, ["summer"], 18, {}),
-    ("White t-shirt",          "top",       (246, 246, 242), "tee",    2, 2, ["summer"], 15, {}),
-    ("Navy merino jumper",     "knitwear",  (32, 46, 84),    "jumper", 6, 3, ["autumn", "winter"], 89, {}),
-    ("Oatmeal lambswool crew", "knitwear",  (214, 196, 166), "jumper", 6, 3, ["autumn", "winter"], 75, {}),
-    ("Charcoal wool coat",     "outerwear", (56, 56, 60),    "coat",   9, 4, ["winter"], 240,
+    ("White oxford shirt",     "shirt",     (248, 248, 244), "shirt",  3, 4, ["spring", "autumn"], {}),
+    ("Pale blue oxford shirt", "shirt",     (176, 202, 230), "shirt",  3, 4, ["spring", "summer"], {}),
+    ("Grey marl t-shirt",      "top",       (150, 148, 145), "tee",    2, 2, ["summer"], {}),
+    ("White t-shirt",          "top",       (246, 246, 242), "tee",    2, 2, ["summer"], {}),
+    ("Navy merino jumper",     "knitwear",  (32, 46, 84),    "jumper", 6, 3, ["autumn", "winter"], {}),
+    ("Oatmeal lambswool crew", "knitwear",  (214, 196, 166), "jumper", 6, 3, ["autumn", "winter"], {}),
+    ("Charcoal wool coat",     "outerwear", (56, 56, 60),    "coat",   9, 4, ["winter"],
      {"wind_proof": True}),
-    ("Olive field jacket",     "outerwear", (104, 110, 72),  "coat",   6, 2, ["autumn", "spring"], 130,
+    ("Olive field jacket",     "outerwear", (104, 110, 72),  "coat",   6, 2, ["autumn", "spring"],
      {"water_proof": True, "wind_proof": True}),
-    ("Indigo selvedge jeans",  "bottom",    (52, 66, 96),    "trouser", 4, 2, ["autumn", "winter", "spring"], 110, {}),
-    ("Black slim jeans",       "bottom",    (38, 38, 40),    "trouser", 4, 2, ["autumn", "winter"], 85, {}),
-    ("Stone chinos",           "bottom",    (198, 182, 152), "trouser", 3, 3, ["spring", "summer"], 65, {}),
-    ("Charcoal wool trousers", "bottom",    (62, 62, 68),    "trouser", 5, 5, ["autumn", "winter"], 120, {}),
-    ("Brown leather boots",    "footwear",  (108, 72, 44),   "boot",   4, 3, ["autumn", "winter"], 180, {}),
-    ("White leather trainers", "footwear",  (240, 238, 232), "shoe",   2, 2, ["spring", "summer"], 95, {}),
-    ("Black derby shoes",      "footwear",  (30, 30, 32),    "shoe",   3, 5, ["autumn", "winter"], 150, {}),
-    ("Burgundy lambswool scarf", "scarf",   (108, 34, 52),   "scarf",  4, 3, ["winter"], 45, {}),
-    ("Charcoal beanie",        "headwear",  (58, 58, 62),    "beanie", 3, 1, ["winter"], 22, {}),
-    ("Tan leather belt",       "belt",      (156, 106, 62),  "belt",   0, 3, [], 40, {}),
-    ("Steel dive watch",       "watch",     (188, 190, 194), "watch",  0, 3, [], 320, {}),
-    ("Gold signet ring",       "jewellery", (206, 170, 82),  "ring",   0, 3, [], 180, {}),
-    ("Black wool socks",       "sock",      (36, 36, 38),    "sock",   2, 2, ["autumn", "winter"], 12, {}),
-    ("Grey cotton socks",      "sock",      (140, 140, 142), "sock",   1, 2, ["spring", "summer"], 10, {}),
+    ("Indigo selvedge jeans",  "bottom",    (52, 66, 96),    "trouser", 4, 2, ["autumn", "winter", "spring"], {}),
+    ("Black slim jeans",       "bottom",    (38, 38, 40),    "trouser", 4, 2, ["autumn", "winter"], {}),
+    ("Stone chinos",           "bottom",    (198, 182, 152), "trouser", 3, 3, ["spring", "summer"], {}),
+    ("Charcoal wool trousers", "bottom",    (62, 62, 68),    "trouser", 5, 5, ["autumn", "winter"], {}),
+    ("Brown leather boots",    "footwear",  (108, 72, 44),   "boot",   4, 3, ["autumn", "winter"], {}),
+    ("White leather trainers", "footwear",  (240, 238, 232), "shoe",   2, 2, ["spring", "summer"], {}),
+    ("Black derby shoes",      "footwear",  (30, 30, 32),    "shoe",   3, 5, ["autumn", "winter"], {}),
+    ("Burgundy lambswool scarf", "scarf",   (108, 34, 52),   "scarf",  4, 3, ["winter"], {}),
+    ("Charcoal beanie",        "headwear",  (58, 58, 62),    "beanie", 3, 1, ["winter"], {}),
+    ("Tan leather belt",       "belt",      (156, 106, 62),  "belt",   0, 3, [], {}),
+    ("Steel dive watch",       "watch",     (188, 190, 194), "watch",  0, 3, [], {}),
+    ("Gold signet ring",       "jewellery", (206, 170, 82),  "ring",   0, 3, [], {}),
+    ("Black wool socks",       "sock",      (36, 36, 38),    "sock",   2, 2, ["autumn", "winter"], {}),
+    ("Grey cotton socks",      "sock",      (140, 140, 142), "sock",   1, 2, ["spring", "summer"], {}),
 ]
+
+# A few fits so the demo exercises the control.
+FITS = {
+    "Indigo selvedge jeans": "regular",
+    "Black slim jeans": "skinny",
+    "Stone chinos": "loose",
+    "Charcoal wool trousers": "regular",
+    "White oxford shirt": "slim",
+    "Pale blue oxford shirt": "regular",
+    "Grey marl t-shirt": "regular",
+    "White t-shirt": "oversized",
+}
 
 CARE = {
     "shirt": dict(wash_temp=40, wash_cycle="normal", tumble_dry="low", iron_temp="medium", colour_group="lights"),
@@ -172,7 +184,7 @@ def main():
 
     print("Creating wardrobe…")
     ids = {}
-    for name, cat, rgb, shape, warmth, formality, seasons, price, extras in WARDROBE:
+    for name, cat, rgb, shape, warmth, formality, seasons, extras in WARDROBE:
         blob = to_jpeg(shape_image(rgb, shape))
         r = c.post("/api/items/upload",
                    files={"file": (f"{name}.jpg", blob, "image/jpeg")},
@@ -182,8 +194,11 @@ def main():
         ids[name] = item["id"]
         c.patch(f"/api/items/{item['id']}", json={
             "warmth": warmth, "formality": formality, "seasons": seasons,
-            "price": price, **extras,
+            **extras,
         })
+        fit = FITS.get(name)
+        if fit:
+            c.patch(f"/api/items/{item['id']}", json={"fit": fit})
         if cat in CARE:
             c.put(f"/api/items/{item['id']}/care", json=CARE[cat])
         print(f"  {name}  ({item['colour_primary']})")

@@ -35,9 +35,6 @@ def item_out(row: dict) -> dict:
     item["cutout_url"] = photo_url(item.get("cutout_path"))
     item["display_url"] = item["cutout_url"] or item["image_url"]
 
-    price = item.get("price")
-    worn = int(item.get("total_wears") or 0)
-    item["cost_per_wear"] = round(price / worn, 2) if price and worn else None
     return item
 
 

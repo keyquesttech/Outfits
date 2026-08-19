@@ -70,66 +70,113 @@ function Warnings({ warnings }) {
   )
 }
 
+function Metric({ label, value, sub }) {
+  return (
+    <div className="rounded-xl px-3 py-2" style={{ background: 'var(--surface-2)' }}>
+      <p className="text-[0.65rem] font-semibold uppercase tracking-wide"
+         style={{ color: 'var(--muted)' }}>{label}</p>
+      <p className="mt-0.5 text-base font-bold tabular-nums leading-none">{value}</p>
+      {sub && <p className="mt-1 text-[0.65rem]" style={{ color: 'var(--muted)' }}>{sub}</p>}
+    </div>
+  )
+}
+
 function WeatherCard({ weather, onRefresh, refreshing }) {
-  if (!weather) return <div className="skeleton h-32 rounded-2xl" />
+  if (!weather) return <div className="skeleton h-44 rounded-2xl" />
   if (!weather.available) {
     return (
-      <div className="card px-4 py-4">
+      <div className="card px-4 py-4 sm:px-5">
         <p className="text-sm font-semibold">Weather unavailable</p>
         <p className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
-          {weather.error || 'Could not reach Open-Meteo.'} Suggestions still work, they just will not
-          be scored on temperature.
+          {weather.error || 'Could not reach the forecast service.'} Suggestions still work,
+          they just will not be scored on temperature.
         </p>
-        <button className="btn mt-3" onClick={onRefresh}><Icon name="refresh" size={15} /> Retry</button>
+        <button className="btn mt-3" onClick={onRefresh}>
+          <Icon name="refresh" size={15} /> Retry
+        </button>
       </div>
     )
   }
+
   const c = weather.current || {}
   const t = weather.today || {}
+  const days = (weather.daily || []).slice(1)
+
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-start gap-4 px-4 py-4">
-        <div style={{ color: 'var(--accent)' }}>
-          <WeatherIcon group={c.condition?.group} size={44} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold tabular-nums">{Math.round(c.temp_c)}°</span>
-            <span className="text-sm" style={{ color: 'var(--muted)' }}>
-              feels like {Math.round(c.apparent_c)}°
+      {/* Conditions on the left, the rest of the week filling the width on the
+          right. On a phone the two stack instead. */}
+      <div className="grid gap-px lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+           style={{ background: 'var(--border)' }}>
+        <div className="px-4 py-4 sm:px-5" style={{ background: 'var(--surface)' }}>
+          <div className="flex items-start gap-4">
+            <span className="shrink-0" style={{ color: 'var(--accent)' }}>
+              <WeatherIcon group={c.condition?.group} size={52} />
             </span>
-          </div>
-          <p className="mt-0.5 truncate text-sm font-medium">{c.condition?.label}</p>
-          <p className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
-            {weather.location} · {Math.round(t.min_c)}° to {Math.round(t.max_c)}°
-            {t.rain_chance != null && ` · ${t.rain_chance}% rain`}
-            {c.wind_kph != null && ` · ${Math.round(c.wind_kph)} km/h wind`}
-          </p>
-          <p className="text-[0.68rem]" style={{ color: 'var(--muted)' }}>
-            {weather.provider_label}
-            {weather.stale && ' · showing last known forecast'}
-          </p>
-        </div>
-        <button className="btn btn-ghost !p-1.5" onClick={onRefresh} disabled={refreshing} aria-label="Refresh weather">
-          {refreshing ? <Spinner size={16} /> : <Icon name="refresh" size={16} />}
-        </button>
-      </div>
-      {weather.daily?.length > 1 && (
-        <div className="scroll-x flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          {weather.daily.slice(1).map((d) => (
-            <div key={d.date} className="flex min-w-[4.5rem] flex-col items-center gap-1 rounded-xl px-2 py-2"
-                 style={{ background: 'var(--surface-2)' }}>
-              <span className="text-[0.68rem] font-semibold" style={{ color: 'var(--muted)' }}>
-                {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
-              </span>
-              <span style={{ color: 'var(--accent)' }}><WeatherIcon group={d.condition?.group} size={18} /></span>
-              <span className="text-xs font-semibold tabular-nums">
-                {Math.round(d.max_c)}°/{Math.round(d.min_c)}°
-              </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="text-4xl font-bold leading-none tabular-nums">
+                  {Math.round(c.temp_c)}°
+                </span>
+                <span className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
+                  feels like {Math.round(c.apparent_c)}°
+                </span>
+              </div>
+              <p className="mt-1 truncate text-base font-semibold">{c.condition?.label}</p>
+              <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
+                {weather.location} · {weather.provider_label}
+                {weather.stale && ' · last known forecast'}
+              </p>
             </div>
-          ))}
+            <button className="btn btn-ghost !p-1.5 shrink-0" onClick={onRefresh}
+                    disabled={refreshing} aria-label="Refresh weather">
+              {refreshing ? <Spinner size={16} /> : <Icon name="refresh" size={16} />}
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Metric label="High / low"
+                    value={`${Math.round(t.max_c)}° / ${Math.round(t.min_c)}°`} sub="today" />
+            <Metric label="Rain"
+                    value={t.rain_chance != null ? `${Math.round(t.rain_chance)}%` : '—'}
+                    sub={t.hours_remaining ? `next ${t.hours_remaining} h` : 'chance'} />
+            <Metric label="Wind"
+                    value={c.wind_kph != null ? `${Math.round(c.wind_kph)}` : '—'} sub="km/h" />
+            <Metric label="Humidity"
+                    value={c.humidity != null ? `${Math.round(c.humidity)}%` : '—'} sub="now" />
+          </div>
         </div>
-      )}
+
+        {days.length > 0 && (
+          <div className="px-4 py-4 sm:px-5" style={{ background: 'var(--surface)' }}>
+            <p className="label mb-2">Next {days.length} days</p>
+            <div className="flex gap-2">
+              {days.map((d) => (
+                <div key={d.date}
+                     className="flex flex-1 flex-col items-center gap-1.5 rounded-xl px-1 py-3"
+                     style={{ background: 'var(--surface-2)' }}>
+                  <span className="text-[0.7rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                    {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
+                  </span>
+                  <span style={{ color: 'var(--accent)' }}>
+                    <WeatherIcon group={d.condition?.group} size={22} />
+                  </span>
+                  <span className="text-sm font-bold tabular-nums">{Math.round(d.max_c)}°</span>
+                  <span className="text-[0.7rem] tabular-nums" style={{ color: 'var(--muted)' }}>
+                    {Math.round(d.min_c)}°
+                  </span>
+                  {d.rain_chance > 20 && (
+                    <span className="text-[0.65rem] tabular-nums"
+                          style={{ color: 'var(--accent)' }}>
+                      {Math.round(d.rain_chance)}%
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -231,19 +278,19 @@ export default function Today() {
       <Warnings warnings={weather.data?.warnings} />
 
       <div className="space-y-3">
-        <div className="scroll-x flex gap-2">
+        <div className="rail">
           {DAYS.map((label, i) => (
             <Chip key={label} active={dayOffset === i} onClick={() => setDayOffset(i)}>{label}</Chip>
           ))}
         </div>
-        <div className="scroll-x flex gap-2">
+        <div className="rail">
           {OCCASIONS.map((o) => (
             <Chip key={o} active={occasion === o} onClick={() => setOccasion(o)}>
               {o[0].toUpperCase() + o.slice(1)}
             </Chip>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="rail">
           <Chip active={excludeDirty} onClick={() => setExcludeDirty(!excludeDirty)}>
             <Icon name="drop" size={13} /> {excludeDirty ? 'Hiding dirty items' : 'Including dirty items'}
           </Chip>

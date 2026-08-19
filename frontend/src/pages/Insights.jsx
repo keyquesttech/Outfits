@@ -130,8 +130,8 @@ export default function Insights() {
         <Stat label="Total wears" value={s.total_wears} sub={`${s.wear_logs} days logged`} />
         <Stat label="Needs washing" value={s.dirty_items} tone={s.dirty_items ? 'bad' : undefined}
               sub={`${s.wash_loads} loads run`} />
-        <Stat label="Wardrobe value" value={`£${Math.round(s.wardrobe_value)}`}
-              sub={s.avg_cost_per_wear ? `£${s.avg_cost_per_wear} per wear` : 'add prices to track this'} />
+        <Stat label="Outfits saved" value={s.outfits}
+              sub={`${s.wash_loads} wash loads run`} />
       </div>
 
       <Section title="Items worn per day, last 12 weeks">
@@ -182,23 +182,6 @@ export default function Insights() {
           />
         </div>
       </Section>
-
-      {(data.best_value.length > 0 || data.worst_value.length > 0) && (
-        <div className="grid gap-5 md:grid-cols-2">
-          <Section title="Best value">
-            <div className="card px-4 py-4">
-              <ItemStrip items={data.best_value} valueOf={(i) => `£${i.cost_per_wear}/wear`}
-                         emptyNote="Add prices to see cost per wear." />
-            </div>
-          </Section>
-          <Section title="Most expensive per wear">
-            <div className="card px-4 py-4">
-              <ItemStrip items={data.worst_value} valueOf={(i) => `£${i.cost_per_wear}/wear`}
-                         emptyNote="Add prices to see cost per wear." />
-            </div>
-          </Section>
-        </div>
-      )}
 
       <Section title="Pairs you keep repeating">
         <div className="card px-4 py-4">

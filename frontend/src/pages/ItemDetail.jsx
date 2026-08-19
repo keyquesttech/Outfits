@@ -7,7 +7,7 @@ import { ItemPhoto } from '../components/ItemCard.jsx'
 import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
 import {
   Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
-  WarmthBar, titleCase, useToast,
+  WarmthBar, titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
 function CareSheet({ open, onClose, item, onSaved }) {
@@ -160,6 +160,7 @@ export default function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const toast = useToast()
+  const confirm = useConfirm()
   const meta = useMeta()
   const { data: item, loading, error, reload } = useAsync(() => api.item(id), [id])
   const [editing, setEditing] = useState(false)
@@ -181,7 +182,12 @@ export default function ItemDetail() {
   }
 
   const removeWear = async (w) => {
-    if (!confirm(`Delete the wear logged on ${w.worn_on}? Wear counts go back down.`)) return
+    const ok = await confirm({
+      title: 'Delete this wear?',
+      body: `The wear logged on ${w.worn_on} will be removed.`,
+      detail: 'Wear counts go back down, including progress towards the next wash.',
+    })
+    if (!ok) return
     setBusy(true)
     try {
       await api.deleteWear(w.id)
@@ -191,7 +197,13 @@ export default function ItemDetail() {
   }
 
   const remove = async () => {
-    if (!confirm(`Remove “${item.name}” from the wardrobe? It stays in your history.`)) return
+    const ok = await confirm({
+      title: 'Remove from wardrobe?',
+      body: `“${item.name}” will no longer appear in your wardrobe.`,
+      detail: 'It stays in your history, so past wears and analytics are unaffected.',
+      confirmLabel: 'Remove',
+    })
+    if (!ok) return
     await api.deleteItem(item.id)
     toast('Removed from the wardrobe.', 'success')
     navigate('/wardrobe')
@@ -258,6 +270,7 @@ export default function ItemDetail() {
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
               {titleCase(item.category)}
+              {item.fit ? ` · ${titleCase(item.fit)} fit` : ''}
               {item.subcategory ? ` · ${item.subcategory}` : ''}
               {item.brand ? ` · ${item.brand}` : ''}
               {item.material ? ` · ${item.material}` : ''}
@@ -287,7 +300,7 @@ export default function ItemDetail() {
             <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={15} /> Remove</button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="card px-3 py-2.5">
               <p className="label">Worn</p>
               <p className="mt-0.5 text-xl font-bold tabular-nums">{item.total_wears}</p>
@@ -309,17 +322,10 @@ export default function ItemDetail() {
               <div className="mt-2"><WarmthBar value={item.warmth} /></div>
               <p className="mt-1 text-[0.7rem]" style={{ color: 'var(--muted)' }}>formality {item.formality}/5</p>
             </div>
-            <div className="card px-3 py-2.5">
-              <p className="label">Cost per wear</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">
-                {item.cost_per_wear != null ? `£${item.cost_per_wear}` : '—'}
-              </p>
-              {item.price && <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>paid £{item.price}</p>}
-            </div>
           </div>
 
           <Section title="Status">
-            <div className="flex flex-wrap gap-2">
+            <div className="rail">
               {(meta.statuses || []).map((s) => (
                 <Chip key={s} active={item.status === s} disabled={busy}
                       onClick={() => act(() => api.setStatus(item.id, s))}>

@@ -62,6 +62,65 @@ export function Spinner({ size = 18 }) {
 const ToastCtx = createContext(() => {})
 export const useToast = () => useContext(ToastCtx)
 
+const ConfirmCtx = createContext(async () => false)
+/**
+ * Ask before doing something destructive, in the app's own dialog.
+ *
+ * `window.confirm` blocks the whole page, looks like a browser error, and on a
+ * phone lands as a system alert with the site's hostname in it. Returns a
+ * promise that resolves true when the action is confirmed.
+ */
+export const useConfirm = () => useContext(ConfirmCtx)
+
+export function ConfirmHost({ children }) {
+  const [request, setRequest] = useState(null)
+
+  const confirm = useCallback((options) => new Promise((resolve) => {
+    setRequest({
+      title: 'Are you sure?',
+      confirmLabel: 'Delete',
+      danger: true,
+      ...(typeof options === 'string' ? { body: options } : options),
+      resolve,
+    })
+  }), [])
+
+  const close = (answer) => {
+    request?.resolve(answer)
+    setRequest(null)
+  }
+
+  return (
+    <ConfirmCtx.Provider value={confirm}>
+      {children}
+      <Modal
+        open={!!request}
+        onClose={() => close(false)}
+        title={request?.title || ''}
+        footer={
+          <>
+            <button className="btn" onClick={() => close(false)}>
+              {request?.cancelLabel || 'Cancel'}
+            </button>
+            <button
+              className={request?.danger === false ? 'btn btn-primary' : 'btn btn-danger'}
+              onClick={() => close(true)}
+              autoFocus
+            >
+              {request?.confirmLabel}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm">{request?.body}</p>
+        {request?.detail && (
+          <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{request.detail}</p>
+        )}
+      </Modal>
+    </ConfirmCtx.Provider>
+  )
+}
+
 export function ToastHost({ children }) {
   const [toasts, setToasts] = useState([])
   const push = useCallback((message, tone = 'info') => {

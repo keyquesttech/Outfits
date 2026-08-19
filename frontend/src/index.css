@@ -2,6 +2,7 @@
 
 /* Warm neutrals so garment photos stay the loudest thing on screen. */
 :root {
+  --page-pad: 1rem;
   --bg: #faf8f5;
   --surface: #ffffff;
   --surface-2: #f2efe9;
@@ -66,6 +67,8 @@
 
 html, body, #root { height: 100%; }
 
+@media (min-width: 640px) { :root { --page-pad: 1.5rem; } }
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -121,8 +124,34 @@ body {
 .chip-on { background: var(--accent); border-color: var(--accent); color: #fff; }
 :root[data-theme="dark"] .chip-on { color: #191612; }
 
-.scroll-x { overflow-x: auto; scrollbar-width: none; }
+.scroll-x { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .scroll-x::-webkit-scrollbar { display: none; }
+
+/* A row of chips that uses the full width of the page.
+   It bleeds out to the container edge so nothing is clipped by the page
+   padding, scrolls on a phone where a single row cannot fit, and wraps on a
+   wider screen so every option is visible at once. */
+.rail {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  margin-inline: calc(-1 * var(--page-pad));
+  padding-inline: var(--page-pad);
+  scroll-padding-inline: var(--page-pad);
+}
+.rail::-webkit-scrollbar { display: none; }
+.rail > * { flex: 0 0 auto; }
+
+@media (min-width: 768px) {
+  .rail {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+}
 
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
@@ -133,6 +162,13 @@ body {
 .fade-up { animation: fade-up .25s ease both; }
 
 .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.75rem); }
+@media (min-width: 1024px) { .safe-bottom { padding-bottom: 2.5rem; } }
+
+/* Wide targets are easier to hit on a phone and stop text wrapping oddly. */
+@media (max-width: 480px) {
+  .btn { padding: .6rem .8rem; }
+  .chip { padding: .35rem .7rem; }
+}
 
 }
 

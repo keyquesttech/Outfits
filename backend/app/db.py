@@ -10,9 +10,30 @@ _schema_lock = threading.Lock()
 _schema_done = False
 
 
+# Columns added or removed after the first release. The schema file is the
+# source of truth; this brings an existing database into line with it.
+ADDED_COLUMNS = {"items": {"fit": "TEXT"}}
+DROPPED_COLUMNS = {"items": ["price", "currency", "purchase_date"]}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, columns in ADDED_COLUMNS.items():
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, decl in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    for table, columns in DROPPED_COLUMNS.items():
+        existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name in columns:
+            if name in existing:
+                conn.execute(f"ALTER TABLE {table} DROP COLUMN {name}")
+    conn.commit()
+
+
 def _apply_schema(conn: sqlite3.Connection) -> None:
     sql = (Path(__file__).parent / "schema.sql").read_text()
     conn.executescript(sql)
+    _migrate(conn)
     for key, value in config.DEFAULT_SETTINGS.items():
         conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (key, value))
     conn.commit()
