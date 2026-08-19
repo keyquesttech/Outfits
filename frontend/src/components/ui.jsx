@@ -27,6 +27,9 @@ const paths = {
   refresh: 'M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15',
   calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2ZM16 2v4M8 2v4M3 10h18',
   layers: 'M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5',
+  rotateLeft: 'M3 5v6h6M3.5 10.5a9 9 0 1 1 1.4 6',
+  rotateRight: 'M21 5v6h-6M20.5 10.5a9 9 0 1 0-1.4 6',
+  crop: 'M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14',
 }
 
 export function Icon({ name, size = 20, className = '', ...rest }) {

@@ -5,6 +5,7 @@ import { useMeta } from '../App.jsx'
 import { useAsync, useDebounced, useLocalState } from '../hooks.js'
 import { ItemGrid, ItemPhoto } from '../components/ItemCard.jsx'
 import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
+import ImageEditor from '../components/ImageEditor.jsx'
 import {
   Chip, EmptyState, ErrorNote, Field, Icon, Modal, Spinner, titleCase, useToast,
 } from '../components/ui.jsx'
@@ -113,6 +114,7 @@ function UploadSheet({ open, onClose, onDone }) {
   const [mode, setMode] = useLocalState('outfits.tagMode', 'manual')
   const [queue, setQueue] = useState([])
   const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState(null)
   const inputRef = useRef(null)
 
   const aiReady = useAsync(() => api.settings(), [])
@@ -123,11 +125,25 @@ function UploadSheet({ open, onClose, onDone }) {
     if (list.length) {
       setQueue(list.map((f) => ({
         file: f, name: f.name.replace(/\.[^.]+$/, ''), state: 'ready',
+        preview: URL.createObjectURL(f), edited: false,
       })))
     }
   }
 
-  const reset = () => { setQueue([]); onClose() }
+  const applyEdit = (index) => (edited) => {
+    setQueue((qq) => qq.map((x, j) => {
+      if (j !== index) return x
+      URL.revokeObjectURL(x.preview)
+      return { ...x, file: edited, preview: URL.createObjectURL(edited), edited: true }
+    }))
+    setEditing(null)
+  }
+
+  const reset = () => {
+    queue.forEach((q) => URL.revokeObjectURL(q.preview))
+    setQueue([])
+    onClose()
+  }
 
   const upload = async () => {
     setBusy(true)
@@ -235,14 +251,27 @@ function UploadSheet({ open, onClose, onDone }) {
         {queue.length > 0 && (
           <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
             {queue.map((q, i) => (
-              <div key={i} className="flex items-center gap-3 px-3 py-2">
-                <img src={URL.createObjectURL(q.file)} alt=""
-                     className="h-12 w-12 rounded-lg object-cover" />
+              <div key={i} className="flex items-center gap-2 px-3 py-2 sm:gap-3">
+                <img src={q.preview} alt=""
+                     className="h-12 w-12 shrink-0 rounded-lg object-cover" />
                 <input
-                  className="input flex-1" value={q.name} placeholder="Item name" disabled={busy}
+                  className="input min-w-0 flex-1" value={q.name} placeholder="Item name"
+                  disabled={busy}
                   onChange={(e) =>
                     setQueue((qq) => qq.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                 />
+                <button
+                  className="btn btn-ghost shrink-0 !px-2" disabled={busy}
+                  title="Rotate or crop this photo"
+                  onClick={() => setEditing(i)}
+                >
+                  <Icon name="crop" size={16} />
+                  {q.edited && (
+                    <span className="text-[0.65rem] font-bold" style={{ color: 'var(--accent)' }}>
+                      edited
+                    </span>
+                  )}
+                </button>
                 <span className="w-5 shrink-0 text-center">
                   {q.state === 'uploading' && <Spinner size={15} />}
                   {q.state === 'done' && <Icon name="check" size={16} style={{ color: 'var(--good)' }} />}
@@ -253,6 +282,14 @@ function UploadSheet({ open, onClose, onDone }) {
           </div>
         )}
       </div>
+
+      {editing !== null && queue[editing] && (
+        <ImageEditor
+          open file={queue[editing].file}
+          onCancel={() => setEditing(null)}
+          onApply={applyEdit(editing)}
+        />
+      )}
     </Modal>
   )
 }

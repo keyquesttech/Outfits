@@ -5,6 +5,7 @@ import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
+import ImageEditor from '../components/ImageEditor.jsx'
 import {
   Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
   WarmthBar, titleCase, useConfirm, useToast,
@@ -167,6 +168,7 @@ export default function ItemDetail() {
   const [caring, setCaring] = useState(false)
   const [busy, setBusy] = useState(false)
   const [allWorn, setAllWorn] = useState(false)
+  const [pendingPhoto, setPendingPhoto] = useState(null)
   const photoRef = useRef(null)
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
@@ -231,9 +233,13 @@ export default function ItemDetail() {
           <div className="card aspect-[3/4] overflow-hidden">
             <ItemPhoto item={item} rounded="" full />
           </div>
+          {/* Straight into the editor, so a sideways photo can be fixed before it lands. */}
           <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden"
-                 onChange={(e) => e.target.files?.[0] &&
-                   act(() => api.replacePhoto(item.id, e.target.files[0]), 'Photo replaced.')} />
+                 onChange={(e) => {
+                   const picked = e.target.files?.[0]
+                   if (picked) setPendingPhoto(picked)
+                   e.target.value = ''
+                 }} />
           <div className="flex gap-2">
             <button className="btn flex-1" onClick={() => photoRef.current?.click()} disabled={busy}>
               <Icon name="camera" size={15} /> Replace photo
@@ -443,6 +449,16 @@ export default function ItemDetail() {
         </div>
       </div>
 
+      {pendingPhoto && (
+        <ImageEditor
+          open file={pendingPhoto}
+          onCancel={() => setPendingPhoto(null)}
+          onApply={(edited) => {
+            setPendingPhoto(null)
+            act(() => api.replacePhoto(item.id, edited), 'Photo replaced.')
+          }}
+        />
+      )}
       {editing && <EditSheet open onClose={() => setEditing(false)} item={item} onSaved={() => reload(true)} />}
       {caring && <CareSheet open onClose={() => setCaring(false)} item={item} onSaved={() => reload(true)} />}
     </div>

@@ -14,6 +14,11 @@ what needs washing.
 extracted from the photo automatically — this is plain image processing, not AI, so it
 works with no API key and no model.
 
+**Rotate and crop before uploading.** Every photo gets an optional editor: rotate in
+90° steps, drag a crop box, or lock it to 3:4, 1:1 or 4:3. It runs in the browser, so
+what you see is exactly what is stored — the same editor opens when replacing an
+existing item's photo.
+
 **Tag by hand or let AI do it.** When adding items you choose: *Tag them myself* opens a
 form for each photo right after uploading, stepping through them one at a time with the
 detected colours offered as one-tap choices. *Let AI tag them* fills in category,
