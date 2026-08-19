@@ -4,11 +4,13 @@ import { api } from '../api.js'
 import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
-import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
+import ItemForm, {
+  itemFormPayload, itemFormState, nearestOption, warmthOptions,
+} from '../components/ItemForm.jsx'
 import ImageEditor from '../components/ImageEditor.jsx'
 import {
   Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
-  WarmthBar, titleCase, useConfirm, useToast,
+  titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
 function CareSheet({ open, onClose, item, onSaved }) {
@@ -211,6 +213,15 @@ export default function ItemDetail() {
     navigate('/wardrobe')
   }
 
+  // A belt or a ring contributes no insulation at all, so calling it "Cold" is
+  // nonsense — those categories say so plainly instead of picking a band.
+  const addsWarmth = (meta.default_warmth?.[item.category] ?? 5) > 0
+  const warmthLabel = addsWarmth
+    ? (nearestOption(warmthOptions(meta, item.category), item.warmth)?.label ?? '—')
+    : 'None'
+  const formalityLabel =
+    nearestOption(meta.formality_levels || [], item.formality)?.label ?? '—'
+
   const care = item.care
   const careBits = care ? [
     care.do_not_wash ? 'do not wash' : null,
@@ -325,8 +336,10 @@ export default function ItemDetail() {
             </div>
             <div className="card px-3 py-2.5">
               <p className="label">Warmth</p>
-              <div className="mt-2"><WarmthBar value={item.warmth} /></div>
-              <p className="mt-1 text-[0.7rem]" style={{ color: 'var(--muted)' }}>formality {item.formality}/5</p>
+              <p className="mt-0.5 text-xl font-bold">{warmthLabel}</p>
+              <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>
+                {addsWarmth ? `formality · ${formalityLabel}` : `adds no warmth · ${formalityLabel}`}
+              </p>
             </div>
           </div>
 

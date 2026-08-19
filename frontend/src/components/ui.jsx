@@ -287,16 +287,5 @@ export function Palette({ palette = [], size = 14, max = 5 }) {
   )
 }
 
-export function WarmthBar({ value, max = 10 }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--surface-2)' }}>
-        <div className="h-full rounded-full" style={{ width: `${(value / max) * 100}%`, background: 'var(--accent)' }} />
-      </div>
-      <span className="text-[0.7rem] tabular-nums" style={{ color: 'var(--muted)' }}>{value}</span>
-    </div>
-  )
-}
-
 export const titleCase = (s) =>
   String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase())
