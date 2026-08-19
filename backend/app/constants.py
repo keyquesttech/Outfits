@@ -61,6 +61,31 @@ DEFAULT_WARMTH = {
 
 STATUSES = ["clean", "worn", "needs_wash", "airing", "in_wash"]
 
+PATTERNS = ["plain", "stripe", "check", "floral", "print", "logo", "knit", "herringbone"]
+
+# Suggested tags offered as one-tap chips. Free-text tags still work.
+SUGGESTED_TAGS = ["favourite", "logo", "smart", "comfy", "work", "gym",
+                  "going out", "layering", "holiday"]
+
+# Warmth is stored 0-10 because the recommender sums it and compares the total
+# against a temperature target. People do not think in eleven grades, so the UI
+# offers three, mapped relative to what is typical for the category — a "hot"
+# t-shirt and a "hot" overcoat are nothing like the same number.
+WARMTH_LEVELS = [
+    {"key": "cold", "label": "Cold", "hint": "Keeps you cool", "factor": 0.5},
+    {"key": "neutral", "label": "Neutral", "hint": "Typical for the type", "factor": 1.0},
+    {"key": "hot", "label": "Hot", "hint": "Keeps you warm", "factor": 1.6},
+]
+
+# Formality stays 1-5 so occasions can be matched with some nuance, but the UI
+# offers the three steps people actually use. "Informal" sits above casual and
+# below formal, as in dress codes, not as a synonym for casual.
+FORMALITY_LEVELS = [
+    {"key": "casual", "label": "Casual", "hint": "Jeans and trainers", "value": 1},
+    {"key": "informal", "label": "Informal", "hint": "Smart but not a suit", "value": 3},
+    {"key": "formal", "label": "Formal", "hint": "Suit, tailoring, black tie", "value": 5},
+]
+
 SEASONS = ["spring", "summer", "autumn", "winter"]
 
 WASH_CYCLES = ["normal", "synthetics", "delicate", "wool", "hand"]

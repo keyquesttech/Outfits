@@ -50,3 +50,43 @@ export function useLocalState(key, initial) {
   }, [key, value])
   return [value, setValue]
 }
+
+/**
+ * Debounced auto-save.
+ *
+ * Changes are queued by field and flushed together after a pause, so typing an
+ * API key sends one request rather than one per keystroke. Pass delay 0 for
+ * things toggled rather than typed — a switch should save the instant it moves.
+ */
+export function useAutoSave(save, { delay = 700 } = {}) {
+  const [status, setStatus] = useState('idle')
+  const pending = useRef({})
+  const timer = useRef(null)
+  const saveRef = useRef(save)
+  saveRef.current = save
+
+  const flush = useCallback(async () => {
+    const values = pending.current
+    pending.current = {}
+    if (!Object.keys(values).length) return
+    setStatus('saving')
+    try {
+      await saveRef.current(values)
+      setStatus('saved')
+      setTimeout(() => setStatus((s) => (s === 'saved' ? 'idle' : s)), 2500)
+    } catch (err) {
+      setStatus('error')
+      throw err
+    }
+  }, [])
+
+  const queue = useCallback((values, wait = delay) => {
+    pending.current = { ...pending.current, ...values }
+    clearTimeout(timer.current)
+    if (wait <= 0) flush().catch(() => {})
+    else timer.current = setTimeout(() => flush().catch(() => {}), wait)
+  }, [delay, flush])
+
+  useEffect(() => () => clearTimeout(timer.current), [])
+  return { queue, flush, status }
+}

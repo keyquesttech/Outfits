@@ -20,6 +20,12 @@ detected colours offered as one-tap choices. *Let AI tag them* fills in category
 material, pattern, warmth and formality for you to confirm, and needs a Gemini key. Every
 field stays editable afterwards either way.
 
+Warmth is **Cold / Neutral / Hot** and formality is **Casual / Informal / Formal** — three
+buttons each rather than a slider. Underneath, warmth is still a 0-10 number because the
+recommender adds it up and compares the total against a temperature, and the three buttons
+map relative to the category: "hot" for a t-shirt is not the same number as "hot" for an
+overcoat.
+
 **Weather-aware suggestions.** Outfits are scored on total insulation against the
 feels-like temperature, plus rain, wind, occasion and colour harmony. Every suggestion
 shows its reasoning, so a bad suggestion tells you which dial to turn.
@@ -52,6 +58,10 @@ be typed in or read from a photograph of the care label.
 **Jewellery and accessories** are first-class: they flow through outfits and analytics
 like everything else, they never enter the wash pile, and metal tones are treated as
 metal rather than as a clashing colour.
+
+**Wear history.** Every item lists when it was worn, for what, how the weather felt and
+how you rated it. Any entry can be deleted, which puts the wear counters back — including
+progress towards the next wash.
 
 **Analytics.** Most and least worn, cost per wear, things untouched for 90 days, colour
 distribution, repeated pairings, laundry history, and gaps limiting your suggestions.

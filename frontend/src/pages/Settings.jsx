@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api.js'
-import { useAsync, useDebounced, useLocalState } from '../hooks.js'
+import { useAsync, useAutoSave, useDebounced, useLocalState } from '../hooks.js'
 import { applyTheme } from '../theme.js'
 import {
   Chip, ErrorNote, Field, Icon, Section, Spinner, WeatherIcon, titleCase, useToast,
@@ -8,9 +8,32 @@ import {
 
 const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]
 
+/* Typing needs a pause before saving; flipping a switch does not. */
+const TYPING = 800
+const SECRET = 1400
+const INSTANT = 0
+
+function SaveStatus({ status }) {
+  const map = {
+    idle: null,
+    saving: { text: 'Saving…', tone: 'muted' },
+    saved: { text: 'Saved', tone: 'good' },
+    error: { text: 'Could not save', tone: 'bad' },
+  }
+  const s = map[status]
+  if (!s) return null
+  return (
+    <span className="flex items-center gap-1.5 text-xs font-semibold"
+          style={{ color: `var(--${s.tone})` }}>
+      {status === 'saving' ? <Spinner size={13} /> : <Icon name="check" size={13} />}
+      {s.text}
+    </span>
+  )
+}
+
 /* ------------------------------------------------------------- location */
 
-function LocationPicker({ form, setForm, onSave, busy }) {
+function LocationPicker({ form, setForm, queue }) {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const debounced = useDebounced(query, 400)
@@ -75,16 +98,27 @@ function LocationPicker({ form, setForm, onSave, busy }) {
     }
   }
 
-  const choose = (r) => {
+  const apply = (place) => {
     setForm((f) => ({
       ...f,
-      latitude: String(r.latitude),
-      longitude: String(r.longitude),
-      timezone: r.timezone || f.timezone,
-      location_name: r.label,
+      latitude: String(place.latitude),
+      longitude: String(place.longitude),
+      timezone: place.timezone || f.timezone,
+      location_name: place.label,
     }))
-    setQuery('')
-    toast(`Location set to ${r.label}.`, 'success')
+    queue({
+      latitude: String(place.latitude),
+      longitude: String(place.longitude),
+      timezone: place.timezone || form.timezone || '',
+      location_name: place.label,
+    }, INSTANT)
+  }
+
+  // Coordinates typed by hand are only worth saving once they parse.
+  const setCoord = (key) => (e) => {
+    const value = e.target.value
+    setForm((f) => ({ ...f, [key]: value }))
+    if (value !== '' && Number.isFinite(Number(value))) queue({ [key]: value })
   }
 
   return (
@@ -119,20 +153,14 @@ function LocationPicker({ form, setForm, onSave, busy }) {
           {found.accuracy === 'network' && (
             <p className="mt-1 text-xs" style={{ color: 'var(--warn)' }}>
               Worked out from your broadband address, so it can be a town or two out —
-              check it before saving.
+              check it before using it.
             </p>
           )}
           <div className="mt-2 flex flex-wrap gap-2">
             <button className="btn btn-primary" onClick={() => {
-              setForm((f) => ({
-                ...f,
-                latitude: String(found.latitude),
-                longitude: String(found.longitude),
-                timezone: found.timezone || f.timezone,
-                location_name: found.label,
-              }))
+              apply(found)
               setFound(null)
-              toast('Location set. Press Save location to keep it.', 'success')
+              toast('Location updated.', 'success')
             }}>
               <Icon name="check" size={15} /> Use this
             </button>
@@ -160,7 +188,8 @@ function LocationPicker({ form, setForm, onSave, busy }) {
       {search.data?.results?.length > 0 && (
         <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
           {search.data.results.map((r, i) => (
-            <button key={i} onClick={() => choose(r)}
+            <button key={i}
+                    onClick={() => { apply(r); setQuery(''); toast(`Location set to ${r.label}.`, 'success') }}
                     className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left">
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{r.label}</span>
@@ -177,34 +206,34 @@ function LocationPicker({ form, setForm, onSave, busy }) {
       {manual && (
         <div className="grid grid-cols-2 gap-3">
           <Field label="Latitude">
-            <input className="input" value={form.latitude}
-                   onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
+            <input className="input" value={form.latitude} onChange={setCoord('latitude')} />
           </Field>
           <Field label="Longitude">
-            <input className="input" value={form.longitude}
-                   onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
+            <input className="input" value={form.longitude} onChange={setCoord('longitude')} />
           </Field>
           <Field label="Place name">
             <input className="input" value={form.location_name}
-                   onChange={(e) => setForm({ ...form, location_name: e.target.value })} />
+                   onChange={(e) => {
+                     setForm({ ...form, location_name: e.target.value })
+                     queue({ location_name: e.target.value })
+                   }} />
           </Field>
           <Field label="Timezone">
             <input className="input" value={form.timezone}
-                   onChange={(e) => setForm({ ...form, timezone: e.target.value })} />
+                   onChange={(e) => {
+                     setForm({ ...form, timezone: e.target.value })
+                     queue({ timezone: e.target.value })
+                   }} />
           </Field>
         </div>
       )}
-
-      <button className="btn btn-primary" onClick={onSave} disabled={busy}>
-        {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save location
-      </button>
     </div>
   )
 }
 
 /* -------------------------------------------------------------- weather */
 
-function WeatherSettings({ data, form, setForm, save, busy }) {
+function WeatherSettings({ data, form, setForm, queue }) {
   const [testing, setTesting] = useState(false)
   const [result, setResult] = useState(null)
 
@@ -215,6 +244,11 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
   const region = data.warning_region
   const optimize = form.metoffice_optimize !== '0'
   const warningsOn = form.warnings_enabled !== '0'
+
+  const set = (values, wait) => {
+    setForm((f) => ({ ...f, ...values }))
+    queue(values, wait)
+  }
 
   const test = async () => {
     setTesting(true)
@@ -234,7 +268,7 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
           {providers.map((p) => (
             <button
               key={p.name} type="button"
-              onClick={() => setForm({ ...form, weather_provider: p.name })}
+              onClick={() => set({ weather_provider: p.name }, INSTANT)}
               className="card flex w-full items-start gap-3 px-3 py-2.5 text-left"
               style={current === p.name ? { borderColor: 'var(--accent)' } : undefined}
             >
@@ -271,12 +305,12 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
             <input className="input" type="password" autoComplete="off"
                    placeholder={keySet ? '••••••••••••  (stored)' : 'paste your key'}
                    value={form.metoffice_api_key || ''}
-                   onChange={(e) => setForm({ ...form, metoffice_api_key: e.target.value })} />
+                   onChange={(e) => set({ metoffice_api_key: e.target.value }, SECRET)} />
           </Field>
 
           <button
             type="button"
-            onClick={() => setForm({ ...form, metoffice_optimize: optimize ? '0' : '1' })}
+            onClick={() => set({ metoffice_optimize: optimize ? '0' : '1' }, INSTANT)}
             className="card flex w-full items-start gap-3 px-3 py-2.5 text-left"
             style={optimize ? { borderColor: 'var(--accent)' } : undefined}
           >
@@ -307,18 +341,9 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
         </>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <button className="btn" onClick={test} disabled={testing}>
-          {testing ? <Spinner size={15} /> : <Icon name="refresh" size={15} />} Test connection
-        </button>
-        <button className="btn btn-primary" onClick={() => save({
-          weather_provider: current,
-          metoffice_api_key: form.metoffice_api_key || '',
-          metoffice_optimize: optimize ? '1' : '0',
-        })} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save source
-        </button>
-      </div>
+      <button className="btn" onClick={test} disabled={testing}>
+        {testing ? <Spinner size={15} /> : <Icon name="refresh" size={15} />} Test connection
+      </button>
 
       {result && (
         <div className="rounded-xl px-3 py-2.5 text-sm"
@@ -344,7 +369,7 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
       >
         <button
           type="button"
-          onClick={() => setForm({ ...form, warnings_enabled: warningsOn ? '0' : '1' })}
+          onClick={() => set({ warnings_enabled: warningsOn ? '0' : '1' }, INSTANT)}
           className="chip" style={warningsOn
             ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
             : undefined}
@@ -372,12 +397,6 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
           )}
         </div>
       )}
-
-      <button className="btn btn-primary" onClick={() => save({
-        warnings_enabled: warningsOn ? '1' : '0',
-      })} disabled={busy}>
-        {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save warnings
-      </button>
     </div>
   )
 }
@@ -389,30 +408,39 @@ export default function Settings() {
   const { data, loading, error, reload } = useAsync(() => api.settings(), [])
   const jobs = useAsync(() => api.jobs(), [])
   const [form, setForm] = useState(null)
-  const [busy, setBusy] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
   const [theme, setTheme] = useLocalState('outfits.theme', 'system')
+  const initialised = useRef(false)
 
   useEffect(() => { applyTheme(theme) }, [theme])
+
+  // Seed the form once. Later refreshes must not clobber what is being typed.
   useEffect(() => {
-    if (data) setForm({ ...data.settings, gemini_api_key: '', metoffice_api_key: '' })
+    if (data && !initialised.current) {
+      setForm({ ...data.settings, gemini_api_key: '', metoffice_api_key: '' })
+      initialised.current = true
+    }
   }, [data])
+
+  const { queue, status } = useAutoSave(async (values) => {
+    await api.saveSettings(values)
+    // Secrets are write-only; clear the field so the UI shows "key saved".
+    const secrets = Object.keys(values).filter((k) => k.endsWith('_api_key') && values[k])
+    if (secrets.length) {
+      setForm((f) => ({ ...f, ...Object.fromEntries(secrets.map((k) => [k, ''])) }))
+    }
+    await reload(true)
+    setTestResult(null)
+  })
 
   if (loading && !data) return <div className="skeleton h-64 rounded-2xl" />
   if (error) return <ErrorNote error={error} onRetry={reload} />
   if (!form) return null
 
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
-
-  const save = async (values) => {
-    setBusy(true)
-    try {
-      await api.saveSettings(values)
-      toast('Settings saved.', 'success')
-      await reload(true)
-      setTestResult(null)
-    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+  const set = (values, wait) => {
+    setForm((f) => ({ ...f, ...values }))
+    queue(values, wait)
   }
 
   const testAI = async () => {
@@ -427,23 +455,23 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
+      <div className="sticky top-[3.6rem] z-20 -mx-4 flex items-center justify-between gap-3 px-4 py-2"
+           style={{ background: 'color-mix(in srgb, var(--bg) 92%, transparent)' }}>
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          Changes save automatically.
+        </p>
+        <SaveStatus status={status} />
+      </div>
+
       <Section title="Weather">
         <div className="card px-4 py-4">
-          <WeatherSettings data={data} form={form} setForm={setForm} save={save} busy={busy} />
+          <WeatherSettings data={data} form={form} setForm={setForm} queue={queue} />
         </div>
       </Section>
 
       <Section title="Location">
         <div className="card px-4 py-4">
-          <LocationPicker
-            form={form} setForm={setForm} busy={busy}
-            onSave={() => save({
-              location_name: form.location_name || '',
-              latitude: String(form.latitude || ''),
-              longitude: String(form.longitude || ''),
-              timezone: form.timezone || '',
-            })}
-          />
+          <LocationPicker form={form} setForm={setForm} queue={queue} />
         </div>
       </Section>
 
@@ -457,7 +485,8 @@ export default function Settings() {
           <Field label="Provider">
             <div className="flex gap-2">
               {(data.providers || []).map((p) => (
-                <Chip key={p} active={provider === p} onClick={() => save({ ai_provider: p })}>
+                <Chip key={p} active={provider === p}
+                      onClick={() => set({ ai_provider: p }, INSTANT)}>
                   {p === 'none' ? 'No AI' : titleCase(p)}
                 </Chip>
               ))}
@@ -473,33 +502,24 @@ export default function Settings() {
               >
                 <input className="input" type="password" autoComplete="off"
                        placeholder={keySet ? '••••••••••••  (stored)' : 'paste your key'}
-                       value={form.gemini_api_key} onChange={set('gemini_api_key')} />
+                       value={form.gemini_api_key}
+                       onChange={(e) => set({ gemini_api_key: e.target.value }, SECRET)} />
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Text/vision model">
                   <input className="input" value={form.gemini_model || ''}
-                         onChange={set('gemini_model')} />
+                         onChange={(e) => set({ gemini_model: e.target.value }, TYPING)} />
                 </Field>
                 <Field label="Image model" hint="Used only for background removal.">
                   <input className="input" value={form.gemini_image_model || ''}
-                         onChange={set('gemini_image_model')}
+                         onChange={(e) => set({ gemini_image_model: e.target.value }, TYPING)}
                          placeholder="gemini-2.5-flash-image" />
                 </Field>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="btn btn-primary" disabled={busy}
-                        onClick={() => save({
-                          gemini_api_key: form.gemini_api_key,
-                          gemini_model: form.gemini_model || '',
-                          gemini_image_model: form.gemini_image_model || '',
-                        })}>
-                  {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
-                </button>
-                <button className="btn" onClick={testAI} disabled={testing}>
-                  {testing ? <Spinner size={15} /> : <Icon name="sparkle" size={15} />}
-                  Test connection
-                </button>
-              </div>
+              <button className="btn" onClick={testAI} disabled={testing}>
+                {testing ? <Spinner size={15} /> : <Icon name="sparkle" size={15} />}
+                Test connection
+              </button>
             </>
           )}
 
@@ -520,7 +540,7 @@ export default function Settings() {
 
       <Section title="Appearance">
         <div className="card px-4 py-4">
-          <Field label="Theme">
+          <Field label="Theme" hint="Stored in this browser only.">
             <div className="flex gap-2">
               {THEMES.map(([value, label]) => (
                 <Chip key={value} active={theme === value} onClick={() => setTheme(value)}>

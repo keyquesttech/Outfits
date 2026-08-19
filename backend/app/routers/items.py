@@ -3,8 +3,9 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from .. import config, db, images, jobs, wash
 from ..constants import (
     BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DEFAULT_WARMTH,
-    DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, IRON_TEMP, LAYER_ORDER, NO_WASH_CATEGORIES,
-    SEASONS, STATUSES, TUMBLE_DRY, WASH_CYCLES,
+    DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER,
+    NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
+    WARMTH_LEVELS, WASH_CYCLES,
 )
 from ..models import CareIn, ItemIn, ItemPatch, StatusIn
 from ..serializers import care_out, item_out
@@ -37,6 +38,10 @@ def meta():
         "no_wash_categories": sorted(NO_WASH_CATEGORIES),
         "default_wash_after_wears": DEFAULT_WASH_AFTER_WEARS,
         "default_warmth": DEFAULT_WARMTH,
+        "patterns": PATTERNS,
+        "suggested_tags": SUGGESTED_TAGS,
+        "warmth_levels": WARMTH_LEVELS,
+        "formality_levels": FORMALITY_LEVELS,
     }
 
 

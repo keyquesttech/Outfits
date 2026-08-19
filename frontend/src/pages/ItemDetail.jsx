@@ -154,6 +154,8 @@ function EditSheet({ open, onClose, item, onSaved }) {
   )
 }
 
+const COMFORT_LABEL = { '-1': 'too cold', 0: 'just right', 1: 'too hot' }
+
 export default function ItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -163,6 +165,7 @@ export default function ItemDetail() {
   const [editing, setEditing] = useState(false)
   const [caring, setCaring] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [allWorn, setAllWorn] = useState(false)
   const photoRef = useRef(null)
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
@@ -175,6 +178,16 @@ export default function ItemDetail() {
     setBusy(true)
     try { await fn(); if (message) toast(message, 'success'); await reload(true) }
     catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+  }
+
+  const removeWear = async (w) => {
+    if (!confirm(`Delete the wear logged on ${w.worn_on}? Wear counts go back down.`)) return
+    setBusy(true)
+    try {
+      await api.deleteWear(w.id)
+      toast('Wear deleted and counters reverted.', 'success')
+      await reload(true)
+    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
   }
 
   const remove = async () => {
@@ -357,23 +370,55 @@ export default function ItemDetail() {
             <div className="card px-4 py-3 text-sm" style={{ color: 'var(--muted)' }}>{item.notes}</div>
           )}
 
-          {item.worn_history?.length > 0 && (
-            <Section title="Recently worn">
+          <Section
+            title="Recently worn"
+            action={item.worn_history?.length > 6 && (
+              <button className="btn btn-ghost" onClick={() => setAllWorn((v) => !v)}>
+                {allWorn ? 'Show fewer' : `Show all ${item.worn_history.length}`}
+              </button>
+            )}
+          >
+            {item.worn_history?.length ? (
               <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
-                {item.worn_history.slice(0, 8).map((w) => (
+                {(allWorn ? item.worn_history : item.worn_history.slice(0, 6)).map((w) => (
                   <div key={w.id} className="flex items-center gap-3 px-3.5 py-2 text-sm">
                     <span className="tabular-nums">{w.worn_on}</span>
-                    {w.occasion && <span style={{ color: 'var(--muted)' }}>{w.occasion}</span>}
-                    {w.apparent_c != null && (
-                      <span className="ml-auto tabular-nums" style={{ color: 'var(--muted)' }}>
-                        felt {Math.round(w.apparent_c)}°
-                      </span>
+                    {w.occasion && (
+                      <span className="truncate" style={{ color: 'var(--muted)' }}>{w.occasion}</span>
                     )}
+                    <span className="ml-auto flex shrink-0 items-center gap-3">
+                      {w.comfort_rating != null && (
+                        <span className="text-xs" style={{ color: 'var(--muted)' }}>
+                          {COMFORT_LABEL[w.comfort_rating]}
+                        </span>
+                      )}
+                      {w.apparent_c != null && (
+                        <span className="tabular-nums text-xs" style={{ color: 'var(--muted)' }}>
+                          felt {Math.round(w.apparent_c)}°
+                        </span>
+                      )}
+                      <button
+                        className="btn btn-ghost !p-1" title="Delete this wear"
+                        disabled={busy} onClick={() => removeWear(w)}
+                      >
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </span>
                   </div>
                 ))}
               </div>
-            </Section>
-          )}
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Not worn yet. Log a wear and it will appear here.
+              </p>
+            )}
+            {item.worn_history?.length > 0 && (
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                Deleting a wear puts the counters back where they were, so it also
+                undoes progress towards the next wash.
+              </p>
+            )}
+          </Section>
 
           {item.wash_history?.length > 0 && (
             <Section title="Wash history">
