@@ -27,6 +27,7 @@ const paths = {
   refresh: 'M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15',
   calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2ZM16 2v4M8 2v4M3 10h18',
   layers: 'M12 2 2 7l10 5 10-5-10-5ZM2 17l10 5 10-5M2 12l10 5 10-5',
+  chevron: 'M6 9l6 6 6-6',
   rotateLeft: 'M3 5v6h6M3.5 10.5a9 9 0 1 1 1.4 6',
   rotateRight: 'M21 5v6h-6M20.5 10.5a9 9 0 1 0-1.4 6',
   crop: 'M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14',
@@ -241,6 +242,80 @@ export function Stat({ label, value, sub, tone }) {
       <p className="mt-1 text-2xl font-bold tabular-nums" style={tone ? { color: `var(--${tone})` } : undefined}>{value}</p>
       {sub && <p className="text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
     </div>
+  )
+}
+
+/**
+ * Pick several options from a list.
+ *
+ * The panel expands in flow rather than floating over the page: this is used
+ * inside a scrolling modal, and an absolutely positioned menu gets clipped by
+ * the modal's own overflow.
+ */
+export function MultiSelect({ label, hint, options, selected = [], onChange, empty = 'None' }) {
+  const [open, setOpen] = useState(false)
+  const chosen = options.filter((o) => selected.includes(o.value))
+  const summary = chosen.length === 0
+    ? empty
+    : chosen.length <= 2
+      ? chosen.map((o) => o.label).join(', ')
+      : `${chosen.length} selected`
+
+  const toggle = (value) =>
+    onChange(selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value])
+
+  return (
+    <Field label={label} hint={hint}>
+      <button
+        type="button"
+        className="select flex items-center justify-between gap-2 text-left"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="truncate" style={chosen.length ? undefined : { color: 'var(--muted)' }}>
+          {summary}
+        </span>
+        <span className="shrink-0 transition-transform"
+              style={{ transform: open ? 'rotate(180deg)' : 'none', color: 'var(--muted)' }}>
+          <Icon name="chevron" size={16} />
+        </span>
+      </button>
+
+      {open && (
+        <div className="card mt-1.5 max-h-64 overflow-y-auto p-1">
+          {chosen.length > 0 && (
+            <button type="button" className="btn btn-ghost w-full justify-start text-xs"
+                    onClick={() => onChange([])}>
+              Clear all
+            </button>
+          )}
+          {options.map((o) => {
+            const on = selected.includes(o.value)
+            return (
+              <button
+                key={o.value} type="button" onClick={() => toggle(o.value)}
+                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm"
+                style={on ? { background: 'var(--accent-soft)' } : undefined}
+              >
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded"
+                      style={{
+                        background: on ? 'var(--accent)' : 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        color: '#fff',
+                      }}>
+                  {on && <Icon name="check" size={11} />}
+                </span>
+                <span style={on ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>
+                  {o.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </Field>
   )
 }
 

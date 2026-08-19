@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
-import { Chip, Field, Icon, titleCase } from './ui.jsx'
+import { Chip, Field, Icon, MultiSelect, titleCase } from './ui.jsx'
 
 /**
  * Capitalise the first letter of every word as it is typed.
@@ -245,26 +245,16 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
             ))}
           </select>
         </Field>
-        <Field
+        <MultiSelect
           label="Also counts as"
           hint="Optional. The main category above still decides the layer and how outfits are built — this just files it in more than one place."
-        >
-          <div className="rail">
-            {(meta.categories || []).filter((c) => c !== form.category).map((c) => {
-              const on = (form.categories || []).includes(c)
-              return (
-                <Chip key={c} active={on} onClick={() => setForm({
-                  ...form,
-                  categories: on
-                    ? form.categories.filter((x) => x !== c)
-                    : [...(form.categories || []), c],
-                })}>
-                  {titleCase(c)}
-                </Chip>
-              )
-            })}
-          </div>
-        </Field>
+          options={(meta.categories || [])
+            .filter((c) => c !== form.category)
+            .map((c) => ({ value: c, label: titleCase(c) }))}
+          selected={form.categories || []}
+          onChange={(categories) => setForm({ ...form, categories })}
+          empty="Nothing else"
+        />
 
         <TextField
           label="Subcategory" value={form.subcategory} options={known.subcategory}
