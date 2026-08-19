@@ -7,7 +7,7 @@ recommender, the wear log, the UI — needs to know which service supplied it.
 import time
 
 from .. import db
-from . import metoffice, openmeteo, warnings
+from . import geoip, metoffice, openmeteo, warnings
 from .codes import describe  # re-exported; callers still do weather.describe(...)
 
 PROVIDERS = {
@@ -19,7 +19,8 @@ DEFAULT_TTL = 1800
 
 _cache: dict = {"at": 0.0, "key": None, "data": None}
 
-__all__ = ["fetch", "describe", "geocode", "check", "warnings", "PROVIDERS", "provider_info"]
+__all__ = ["fetch", "describe", "geocode", "check", "locate_by_ip", "warnings",
+           "geoip", "PROVIDERS", "provider_info"]
 
 
 def _settings() -> dict:
@@ -159,6 +160,11 @@ def geocode(query: str, count: int = 6) -> list[dict]:
     """Place-name lookup, always via Open-Meteo — free and keyless regardless of
     which forecast provider is in use."""
     return openmeteo.geocode(query, count)
+
+
+def locate_by_ip(force: bool = False) -> dict:
+    """Approximate location without asking the browser for GPS permission."""
+    return geoip.locate(force=force)
 
 
 def check(provider: str | None = None, api_key: str | None = None) -> dict:

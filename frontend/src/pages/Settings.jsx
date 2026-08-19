@@ -16,44 +16,63 @@ function LocationPicker({ form, setForm, onSave, busy }) {
   const debounced = useDebounced(query, 400)
   const [locating, setLocating] = useState(false)
   const [manual, setManual] = useState(false)
+  const [found, setFound] = useState(null)
 
   const search = useAsync(
     () => (debounced.length >= 2 ? api.geocode(debounced) : Promise.resolve({ results: [] })),
     [debounced]
   )
 
-  // Browsers only expose geolocation on secure origins. http://outfits.local is
-  // not one, so on the Pi this is usually unavailable — say so plainly instead
-  // of letting the button fail with a cryptic permission error.
+  // Browsers only expose GPS on secure origins, and this app is served over
+  // plain HTTP on the LAN, so navigator.geolocation refuses with "Only secure
+  // origins are allowed". Fall back to an IP lookup, which needs no permission
+  // and no HTTPS — approximate, but a forecast only needs the right town.
   const secure = typeof window !== 'undefined' && window.isSecureContext
   const hasGeo = typeof navigator !== 'undefined' && 'geolocation' in navigator
 
-  const useDevice = () => {
-    setLocating(true)
+  const nameFor = async (lat, lon, fallback) => {
+    try {
+      const near = await api.geocode(`${lat},${lon}`)
+      if (near.results?.[0]) return near.results[0].label
+    } catch { /* naming is a nicety; the coordinates are the point */ }
+    return fallback
+  }
+
+  const byGps = () => new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
-        const lat = coords.latitude.toFixed(4)
-        const lon = coords.longitude.toFixed(4)
-        let label = `${lat}, ${lon}`
-        try {
-          const near = await api.geocode(`${lat},${lon}`)
-          if (near.results?.[0]) label = near.results[0].label
-        } catch { /* naming is a nicety, the coordinates are the point */ }
-        setForm((f) => ({ ...f, latitude: lat, longitude: lon, location_name: label }))
-        setLocating(false)
-        toast('Location set from your device.', 'success')
+        const lat = Number(coords.latitude.toFixed(4))
+        const lon = Number(coords.longitude.toFixed(4))
+        resolve({
+          latitude: lat, longitude: lon, accuracy: 'gps',
+          label: await nameFor(lat, lon, `${lat}, ${lon}`),
+        })
       },
-      (err) => {
-        setLocating(false)
-        toast(
-          err.code === 1
-            ? 'Location permission was denied. Search for your town instead.'
-            : `Could not get device location: ${err.message}`,
-          'error'
-        )
-      },
+      reject,
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
     )
+  })
+
+  const detect = async () => {
+    setLocating(true)
+    setFound(null)
+    try {
+      if (secure && hasGeo) {
+        try {
+          setFound(await byGps())
+          return
+        } catch { /* denied or unavailable — fall through to the network lookup */ }
+      }
+      const ip = await api.geoip()
+      setFound({
+        latitude: ip.latitude, longitude: ip.longitude, timezone: ip.timezone,
+        label: ip.label, accuracy: 'network', source: ip.source,
+      })
+    } catch (e) {
+      toast(`Could not detect a location: ${e.message}`, 'error')
+    } finally {
+      setLocating(false)
+    }
   }
 
   const choose = (r) => {
@@ -79,20 +98,54 @@ function LocationPicker({ form, setForm, onSave, busy }) {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <button className="btn" onClick={useDevice} disabled={!secure || !hasGeo || locating}>
+        <button className="btn" onClick={detect} disabled={locating}>
           {locating ? <Spinner size={15} /> : <Icon name="search" size={15} />}
-          Use my device location
+          Detect my location
         </button>
         <button className="btn btn-ghost" onClick={() => setManual((m) => !m)}>
           {manual ? 'Hide' : 'Enter'} coordinates
         </button>
       </div>
 
-      {!secure && (
+      {found && (
+        <div className="card px-3.5 py-3" style={{ borderColor: 'var(--accent)' }}>
+          <p className="label">
+            {found.accuracy === 'gps' ? 'From your device' : 'From your network'}
+          </p>
+          <p className="mt-1 text-sm font-semibold">{found.label}</p>
+          <p className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+            {found.latitude}, {found.longitude}
+          </p>
+          {found.accuracy === 'network' && (
+            <p className="mt-1 text-xs" style={{ color: 'var(--warn)' }}>
+              Worked out from your broadband address, so it can be a town or two out —
+              check it before saving.
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button className="btn btn-primary" onClick={() => {
+              setForm((f) => ({
+                ...f,
+                latitude: String(found.latitude),
+                longitude: String(found.longitude),
+                timezone: found.timezone || f.timezone,
+                location_name: found.label,
+              }))
+              setFound(null)
+              toast('Location set. Press Save location to keep it.', 'success')
+            }}>
+              <Icon name="check" size={15} /> Use this
+            </button>
+            <button className="btn btn-ghost" onClick={() => setFound(null)}>Not right</button>
+          </div>
+        </div>
+      )}
+
+      {!secure && !found && (
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
-          Device location needs a secure connection, and this app is served over plain HTTP
-          on your network, so browsers block it here. Searching for your town below sets the
-          same thing.
+          Your browser only shares GPS over a secure connection, and this app is served over
+          plain HTTP on your network — so this works out roughly where you are from your
+          broadband connection instead. Searching for your town is the precise way.
         </p>
       )}
 

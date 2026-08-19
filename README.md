@@ -242,8 +242,22 @@ when all three of these hold:
 3. The warning is in force at some point today — active now, or starting later today.
    One that ended this morning or does not begin until Thursday is not shown.
 
-## Device location
+## Setting your location
 
-The "Use my device location" button needs a secure context, and this app is served over
-plain HTTP on your LAN, so browsers disable it there. The button explains this and greys
-itself out. Searching for a place name sets exactly the same thing and always works.
+Three ways, in Settings → Location:
+
+- **Detect my location** — uses your device's GPS when the app is reached over HTTPS or
+  localhost, and otherwise works out roughly where you are from your broadband address.
+  Either way it proposes a place for you to confirm before anything is saved.
+- **Search for a place** — the precise option, and the one to use if detection is off.
+- **Enter coordinates** — for when you know exactly what you want.
+
+Browsers only hand out GPS on a secure origin. Served over plain HTTP on the LAN,
+`navigator.geolocation` refuses outright with *"Only secure origins are allowed"*, so the
+network lookup is the fallback. It is approximate: it resolves to wherever your ISP hands
+off traffic, which can be a town or two from where you actually are — the UI says so and
+asks you to check. Two different lookup services disagreed by about 80 km on the same
+connection during testing.
+
+If you want true device GPS, serve the app over HTTPS and the button will use it
+automatically.

@@ -50,6 +50,19 @@ def weather_warnings(region: str | None = None, refresh: bool = False,
     return weather.warnings.fetch(region, force=refresh, today_only=today_only)
 
 
+@router.get("/geoip")
+def geoip(refresh: bool = False):
+    """Approximate location from the public IP.
+
+    Browsers block GPS on insecure origins, so this is the fallback that works
+    over plain HTTP on the LAN with no permission prompt.
+    """
+    result = weather.locate_by_ip(force=refresh)
+    if not result.get("available"):
+        raise HTTPException(502, result.get("message", "Location lookup failed"))
+    return result
+
+
 @router.get("/geocode")
 def geocode(q: str = Query(..., min_length=2, max_length=120)):
     """Place-name search, so the location can be set without knowing coordinates."""
