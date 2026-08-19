@@ -78,6 +78,11 @@ export const api = {
   washHistory: () => get('/api/laundry/history'),
 
   weather: (refresh = false) => get('/api/weather' + (refresh ? '?refresh=true' : '')),
+  weatherProviders: () => get('/api/weather/providers'),
+  weatherUsage: () => get('/api/weather/usage'),
+  weatherWarnings: (region) => get('/api/weather/warnings' + qs({ region })),
+  testWeather: (provider, api_key) => post('/api/weather/test', { provider, api_key }),
+  geocode: (q) => get('/api/geocode' + qs({ q })),
   suggest: (body) => post('/api/suggest', body),
   calibration: () => get('/api/suggest/calibration'),
 

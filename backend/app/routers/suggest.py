@@ -1,8 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 
 from .. import db, recommend, weather
 from ..ai import get_provider
-from ..models import SuggestIn
+from ..models import SuggestIn, WeatherTestIn
 from ..serializers import item_out, load_items
 
 router = APIRouter(prefix="/api", tags=["suggest"])
@@ -11,6 +11,42 @@ router = APIRouter(prefix="/api", tags=["suggest"])
 @router.get("/weather")
 def get_weather(refresh: bool = False):
     return weather.fetch(force=refresh)
+
+
+@router.get("/weather/providers")
+def weather_providers():
+    return {
+        "providers": weather.provider_info(),
+        "current": db.get_setting("weather_provider", "open-meteo"),
+        "usage": weather.usage(),
+    }
+
+
+@router.post("/weather/test")
+def weather_test(payload: WeatherTestIn):
+    """Check a provider before committing to it. An API key can be passed in so
+    the key is validated before it is saved."""
+    return weather.check(payload.provider, payload.api_key)
+
+
+@router.get("/weather/usage")
+def weather_usage():
+    return weather.usage()
+
+
+@router.get("/weather/warnings")
+def weather_warnings(region: str | None = None, refresh: bool = False):
+    region = region or db.get_setting("warnings_region", "uk")
+    return weather.warnings.fetch(region, force=refresh)
+
+
+@router.get("/geocode")
+def geocode(q: str = Query(..., min_length=2, max_length=120)):
+    """Place-name search, so the location can be set without knowing coordinates."""
+    try:
+        return {"results": weather.geocode(q)}
+    except Exception as exc:
+        raise HTTPException(502, f"Place lookup failed: {exc}") from exc
 
 
 def _conditions(day_offset: int) -> dict:

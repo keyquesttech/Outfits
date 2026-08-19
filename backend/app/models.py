@@ -99,6 +99,12 @@ class SettingsIn(BaseModel):
     values: dict[str, str]
 
 
+class WeatherTestIn(BaseModel):
+    provider: str | None = None
+    # Lets a key be validated before it is saved.
+    api_key: str | None = None
+
+
 class SuggestIn(BaseModel):
     occasion: str | None = None
     count: int = Field(default=3, ge=1, le=8)

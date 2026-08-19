@@ -7,10 +7,12 @@ from ..models import SettingsIn
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
-SECRET_KEYS = {"gemini_api_key"}
+SECRET_KEYS = {"gemini_api_key", "metoffice_api_key"}
 ALLOWED = {
     "ai_provider", "gemini_api_key", "gemini_model", "gemini_image_model",
     "latitude", "longitude", "timezone", "location_name", "units", "warmth_offset",
+    "weather_provider", "metoffice_api_key", "metoffice_optimize",
+    "warnings_enabled", "warnings_region",
 }
 
 
@@ -33,6 +35,10 @@ def get_settings():
         "settings": _redacted(),
         "ai": {"provider": provider.name, "available": provider.available},
         "providers": ["none", "gemini"],
+        "weather_providers": weather.provider_info(),
+        "weather_usage": weather.usage(),
+        "warning_regions": [{"code": c, "label": l}
+                            for c, l in weather.warnings.REGIONS.items()],
     }
 
 
@@ -46,7 +52,9 @@ def put_settings(payload: SettingsIn):
         if key in SECRET_KEYS and value == "":
             continue
         db.set_setting(key, value)
-    if {"latitude", "longitude", "timezone"} & set(payload.values):
+    # Anything that changes what would be fetched invalidates the cached forecast.
+    if {"latitude", "longitude", "timezone", "weather_provider",
+            "metoffice_api_key", "metoffice_optimize"} & set(payload.values):
         weather.fetch(force=True)
     return get_settings()
 

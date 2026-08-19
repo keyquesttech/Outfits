@@ -4,8 +4,9 @@ import { api } from '../api.js'
 import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
+import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
 import {
-  Chip, ErrorNote, Field, Icon, Modal, Palette, Section, Spinner, StatusPill,
+  Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
   WarmthBar, titleCase, useToast,
 } from '../components/ui.jsx'
 
@@ -127,39 +128,18 @@ function CareSheet({ open, onClose, item, onSaved }) {
 function EditSheet({ open, onClose, item, onSaved }) {
   const meta = useMeta()
   const toast = useToast()
-  const [form, setForm] = useState(() => ({
-    name: item.name || '', category: item.category || 'top', subcategory: item.subcategory || '',
-    brand: item.brand || '', material: item.material || '', pattern: item.pattern || '',
-    colour_primary: item.colour_primary || '', colour_secondary: item.colour_secondary || '',
-    warmth: item.warmth ?? 5, formality: item.formality ?? 3,
-    seasons: item.seasons || [], wind_proof: !!item.wind_proof, water_proof: !!item.water_proof,
-    price: item.price ?? '', purchase_date: item.purchase_date || '',
-    wash_after_wears: item.wash_after_wears ?? '', notes: item.notes || '',
-    tags: (item.tags || []).join(', '),
-  }))
+  const [form, setForm] = useState(() => itemFormState(item))
   const [busy, setBusy] = useState(false)
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value })
 
   const save = async () => {
     setBusy(true)
     try {
-      await api.updateItem(item.id, {
-        ...form,
-        price: form.price === '' ? null : Number(form.price),
-        warmth: Number(form.warmth),
-        formality: Number(form.formality),
-        wash_after_wears: form.wash_after_wears === '' ? null : Number(form.wash_after_wears),
-        tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
-      })
+      await api.updateItem(item.id, itemFormPayload(form))
       toast('Saved.', 'success')
       onSaved()
       onClose()
     } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
   }
-
-  const toggleSeason = (s) =>
-    setForm({ ...form, seasons: form.seasons.includes(s)
-      ? form.seasons.filter((x) => x !== s) : [...form.seasons, s] })
 
   return (
     <Modal open={open} onClose={onClose} title="Edit item" wide
@@ -169,60 +149,7 @@ function EditSheet({ open, onClose, item, onSaved }) {
           {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
         </button>
       </>}>
-      <div className="space-y-4">
-        <Field label="Name"><input className="input" value={form.name} onChange={set('name')} /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Category">
-            <select className="select" value={form.category} onChange={set('category')}>
-              {(meta.categories || []).map((c) => <option key={c} value={c}>{titleCase(c)}</option>)}
-            </select>
-          </Field>
-          <Field label="Subcategory"><input className="input" value={form.subcategory} onChange={set('subcategory')} placeholder="crew neck" /></Field>
-          <Field label="Brand"><input className="input" value={form.brand} onChange={set('brand')} /></Field>
-          <Field label="Material"><input className="input" value={form.material} onChange={set('material')} placeholder="merino wool" /></Field>
-          <Field label="Primary colour"><input className="input" value={form.colour_primary} onChange={set('colour_primary')} /></Field>
-          <Field label="Secondary colour"><input className="input" value={form.colour_secondary} onChange={set('colour_secondary')} /></Field>
-          <Field label="Pattern"><input className="input" value={form.pattern} onChange={set('pattern')} placeholder="plain, stripe…" /></Field>
-          <Field label="Price (£)"><input className="input" type="number" step="0.01" value={form.price} onChange={set('price')} /></Field>
-        </div>
-
-        <Field label={`Warmth — ${form.warmth}/10`} hint="How much insulation it gives, not how it looks.">
-          <input type="range" min="0" max="10" value={form.warmth} onChange={set('warmth')}
-                 className="w-full" style={{ accentColor: 'var(--accent)' }} />
-        </Field>
-        <Field label={`Formality — ${form.formality}/5`} hint="1 loungewear, 3 work, 5 black tie.">
-          <input type="range" min="1" max="5" value={form.formality} onChange={set('formality')}
-                 className="w-full" style={{ accentColor: 'var(--accent)' }} />
-        </Field>
-
-        <Field label="Seasons">
-          <div className="flex flex-wrap gap-2">
-            {(meta.seasons || []).map((s) => (
-              <Chip key={s} active={form.seasons.includes(s)} onClick={() => toggleSeason(s)}>{titleCase(s)}</Chip>
-            ))}
-          </div>
-        </Field>
-
-        <div className="flex flex-wrap gap-2">
-          <Chip active={form.water_proof} onClick={() => setForm({ ...form, water_proof: !form.water_proof })}>
-            <Icon name="drop" size={13} /> Waterproof
-          </Chip>
-          <Chip active={form.wind_proof} onClick={() => setForm({ ...form, wind_proof: !form.wind_proof })}>
-            <Icon name="wind" size={13} /> Windproof
-          </Chip>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Wash after (wears)" hint={`Default for ${titleCase(form.category)}: ${meta.default_wash_after_wears?.[form.category] ?? '—'}`}>
-            <input className="input" type="number" min="0" value={form.wash_after_wears}
-                   onChange={set('wash_after_wears')} placeholder="use default" />
-          </Field>
-          <Field label="Bought on"><input className="input" type="date" value={form.purchase_date} onChange={set('purchase_date')} /></Field>
-        </div>
-
-        <Field label="Tags" hint="Comma separated"><input className="input" value={form.tags} onChange={set('tags')} /></Field>
-        <Field label="Notes"><textarea className="textarea" rows={2} value={form.notes} onChange={set('notes')} /></Field>
-      </div>
+      <ItemForm form={form} setForm={setForm} meta={meta} palette={item.palette} />
     </Modal>
   )
 }

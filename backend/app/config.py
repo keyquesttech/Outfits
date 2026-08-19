@@ -32,6 +32,13 @@ DEFAULT_SETTINGS = {
     "location_name": "London, UK",
     "units": "metric",
     "warmth_offset": "0",           # learned personal calibration, in °C
+    "weather_provider": "open-meteo",   # open-meteo | metoffice
+    "metoffice_api_key": "",
+    "metoffice_optimize": "1",          # 1 = long cache, single request per refresh
+    "metoffice_usage_month": "",
+    "metoffice_usage_calls": "0",
+    "warnings_enabled": "1",
+    "warnings_region": "uk",
 }
 
 

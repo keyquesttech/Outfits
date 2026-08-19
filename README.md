@@ -12,13 +12,30 @@ what needs washing.
 
 **Photo wardrobe.** Upload or photograph an item and it is catalogued. Colours are
 extracted from the photo automatically — this is plain image processing, not AI, so it
-works with no API key and no model. With a Gemini key configured it also fills in
-category, material, pattern, warmth and formality for you to confirm.
+works with no API key and no model.
 
-**Weather-aware suggestions.** Open-Meteo (free, no key) supplies the feels-like
-temperature, and outfits are scored on total insulation against it, plus rain, wind,
-occasion and colour harmony. Every suggestion shows its reasoning, so a bad suggestion
-tells you which dial to turn.
+**Tag by hand or let AI do it.** When adding items you choose: *Tag them myself* opens a
+form for each photo right after uploading, stepping through them one at a time with the
+detected colours offered as one-tap choices. *Let AI tag them* fills in category,
+material, pattern, warmth and formality for you to confirm, and needs a Gemini key. Every
+field stays editable afterwards either way.
+
+**Weather-aware suggestions.** Outfits are scored on total insulation against the
+feels-like temperature, plus rain, wind, occasion and colour harmony. Every suggestion
+shows its reasoning, so a bad suggestion tells you which dial to turn.
+
+**Two forecast sources.** Open-Meteo (free, keyless, global) or the Met Office DataHub
+Site Specific API for the UK. Met Office needs a free API key, and there is a
+one-tick **Optimise for the free plan** mode: it makes a single three-hourly request per
+refresh instead of two and caches for three hours, which works out at roughly 240 calls a
+month rather than 2,880. Usage is counted and shown in Settings.
+
+**Severe weather warnings.** Met Office public warnings for your region, shown on the
+Today page with hazard, area and validity period. This feed needs no key and no account,
+so warnings work whichever forecast source you pick.
+
+**Set your location** by searching for a place name, from your device's GPS, or by typing
+coordinates.
 
 **It learns how you feel the cold.** Rate a wear "too hot", "just right" or "too cold"
 and your personal warmth offset shifts. The app converges on how *you* experience 12 °C
@@ -170,3 +187,48 @@ then in Settings choose Gemini, paste the key, and press "Test connection". The 
 stored in the local database and never sent back to the browser.
 
 Turning AI off at any point leaves everything else working.
+
+---
+
+## Setting up the Met Office forecast
+
+Also optional — Open-Meteo is the default and needs nothing.
+
+1. Create a free account at [datahub.metoffice.gov.uk](https://datahub.metoffice.gov.uk/)
+   and subscribe to **Site Specific** (Global Spot).
+2. In Settings → Weather, pick Met Office, paste the key, and press "Test connection".
+   The test reports the temperature it read back and names any fields it could not find.
+3. Leave **Optimise for the free plan** ticked unless you have allowance to spare.
+
+Endpoints used, verified against the live service:
+
+```
+GET https://data.hub.api.metoffice.gov.uk/sitespecific/v0/point/{hourly,three-hourly,daily}
+    ?latitude=..&longitude=..
+Header: apikey: <your key>
+```
+
+Optimised mode calls `three-hourly` only — it covers 168 hours, so one request supplies
+both current conditions and the multi-day outlook. Unoptimised calls `hourly` and `daily`
+for finer detail.
+
+Met Office field names are read through candidate lists rather than hard-coded, because
+the exact spellings differ between the three feeds and the full schema sits behind a
+DataHub account. If a name changes, the "Test connection" button reports which fields went
+missing instead of the forecast silently filling with nulls.
+
+### A caveat worth knowing
+
+The Met Office provider is written from the live API's own error responses and published
+field conventions, but it has **not been exercised against a real key** — I do not have
+one. The authentication, endpoints and error handling are verified; the response parsing
+is careful but unproven. Press "Test connection" first: it will tell you if anything is
+missing.
+
+---
+
+## Device location
+
+The "Use my device location" button needs a secure context, and this app is served over
+plain HTTP on your LAN, so browsers disable it there. The button explains this and greys
+itself out. Searching for a place name sets exactly the same thing and always works.

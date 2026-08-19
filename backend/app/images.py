@@ -155,17 +155,38 @@ def extract_palette(img: Image.Image, count: int = 6) -> list[dict]:
     if not entries or kept < 0.02 * total:
         entries = clusters or [(1, bg)]
 
-    entries.sort(key=lambda e: -e[0])
-    kept = entries[:count]
-    shown = sum(e[0] for e in kept) or 1
+    # Quantisation happily returns six shades of the same burgundy. Merge the
+    # clusters that a person would give one name, so the palette reads as
+    # "burgundy, silver" rather than the same word five times.
+    merged: dict[str, dict] = {}
+    for pixels, rgb in entries:
+        name = name_colour(rgb)
+        slot = merged.get(name)
+        if slot is None:
+            # `lead` is the biggest single cluster seen for this name; its shade
+            # becomes the swatch, while `pixels` accumulates the whole group.
+            merged[name] = {"pixels": pixels, "lead": pixels, "rgb": rgb, "name": name}
+        else:
+            slot["pixels"] += pixels
+            if pixels > slot["lead"]:
+                slot["lead"] = pixels
+                slot["rgb"] = rgb
+
+    ranked = sorted(merged.values(), key=lambda e: -e["pixels"])
+    total = sum(e["pixels"] for e in ranked) or 1
+    # Anti-aliased edges leave slivers of colours the garment does not really
+    # have. Anything under 3% is edge noise, not part of the palette.
+    significant = [e for e in ranked if e["pixels"] / total >= 0.03] or ranked[:1]
+    ranked = significant[:count]
+    shown = sum(e["pixels"] for e in ranked) or 1
     return [
         {
-            "hex": hex_of(rgb),
-            "rgb": list(rgb),
-            "name": name_colour(rgb),
-            "share": round(pixels / shown, 4),
+            "hex": hex_of(e["rgb"]),
+            "rgb": list(e["rgb"]),
+            "name": e["name"],
+            "share": round(e["pixels"] / shown, 4),
         }
-        for pixels, rgb in kept
+        for e in ranked
     ]
 
 

@@ -10,6 +10,53 @@ import {
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
 const DAYS = ['Today', 'Tomorrow', 'In 2 days', 'In 3 days']
 
+const WARNING_COLOUR = { yellow: '#d9a054', amber: '#e08b2e', red: '#c0392b' }
+
+function Warnings({ warnings }) {
+  const [open, setOpen] = useState(false)
+  const list = warnings?.warnings || []
+  if (!warnings?.available || !list.length) return null
+
+  const worst = WARNING_COLOUR[warnings.highest] || WARNING_COLOUR.yellow
+  const shown = open ? list : list.slice(0, 2)
+
+  return (
+    <div className="card overflow-hidden" style={{ borderColor: worst }}>
+      <div className="flex items-center gap-2 px-4 pt-3">
+        <span style={{ color: worst }}><Icon name="storm" size={18} /></span>
+        <p className="text-sm font-bold">
+          {list.length} Met Office warning{list.length === 1 ? '' : 's'} · {warnings.region_label}
+        </p>
+      </div>
+      <div className="space-y-1.5 px-4 py-3">
+        {shown.map((w, i) => (
+          <a key={i} href={w.link} target="_blank" rel="noreferrer"
+             className="flex items-start gap-2 text-sm">
+            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
+                  style={{ background: WARNING_COLOUR[w.level] || worst }} />
+            <span className="min-w-0">
+              <span className="block font-medium">
+                {w.hazard ? `${w.hazard[0].toUpperCase()}${w.hazard.slice(1)}` : w.title}
+                {w.area ? ` — ${w.area}` : ''}
+              </span>
+              {w.valid_from && (
+                <span className="block text-xs" style={{ color: 'var(--muted)' }}>
+                  {w.valid_from} to {w.valid_to}
+                </span>
+              )}
+            </span>
+          </a>
+        ))}
+        {list.length > 2 && (
+          <button className="btn btn-ghost !px-0 text-xs" onClick={() => setOpen(!open)}>
+            {open ? 'Show fewer' : `Show ${list.length - 2} more`}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function WeatherCard({ weather, onRefresh, refreshing }) {
   if (!weather) return <div className="skeleton h-32 rounded-2xl" />
   if (!weather.available) {
@@ -44,6 +91,10 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
             {weather.location} · {Math.round(t.min_c)}° to {Math.round(t.max_c)}°
             {t.rain_chance != null && ` · ${t.rain_chance}% rain`}
             {c.wind_kph != null && ` · ${Math.round(c.wind_kph)} km/h wind`}
+          </p>
+          <p className="text-[0.68rem]" style={{ color: 'var(--muted)' }}>
+            {weather.provider_label}
+            {weather.stale && ' · showing last known forecast'}
           </p>
         </div>
         <button className="btn btn-ghost !p-1.5" onClick={onRefresh} disabled={refreshing} aria-label="Refresh weather">
@@ -164,6 +215,7 @@ export default function Today() {
   return (
     <div className="space-y-6">
       <WeatherCard weather={weather.data} onRefresh={refreshWeather} refreshing={refreshing} />
+      <Warnings warnings={weather.data?.warnings} />
 
       <div className="space-y-3">
         <div className="scroll-x flex gap-2">
