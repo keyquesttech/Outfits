@@ -3,6 +3,11 @@
 Self-hosted wardrobe app on the Raspberry Pi. Photo-based inventory, outfit building,
 weather-aware suggestions, wear + washing tracking, analytics.
 
+> **Status: built and running.** All five phases are complete and the app is live at
+> http://outfits.local/. See [README.md](README.md) for how to use and operate it.
+> This document is kept for the deployment research behind the network design —
+> the measurements in section 1 are why the app runs the way it does.
+
 ---
 
 ## 1. Deployment: how it coexists with FlatBrain
@@ -187,34 +192,38 @@ on AI being present.
 
 ---
 
-## 5. Build phases
+## 5. Build phases — all complete
 
-### Phase 0 — Network + skeleton · ~1.5 h
-The novel part, proven first. Three systemd units, hello-world FastAPI answering on
-`http://outfits.local/`, and a check that `flatbrain.local` is untouched.
+| Phase | Scope | Done |
+| --- | --- | --- |
+| 0 | Network namespace, three systemd units, skeleton on `outfits.local` | yes |
+| 1 | Schema, item CRUD, photo pipeline, colour extraction, gallery | yes |
+| 2 | Wear logging, wear counters, care instructions, laundry batching | yes |
+| 3 | Outfit builder, Open-Meteo, warmth scoring, personal calibration | yes |
+| 4 | Gemini provider, analytics dashboard, PWA, backup script | yes |
 
-### Phase 1 — Wardrobe core, zero AI · ~6-8 h
-Schema and migrations, item CRUD, photo upload pipeline, colour extraction, manual tag form,
-gallery grid with filters and search. **At the end of this phase the app is already useful.**
+## 6. What changed from the plan
 
-### Phase 2 — Wear + washing · ~5-6 h
-Wear logging, wear counters and status transitions, care instructions, the laundry batching
-view, "due for washing" list, wash history.
+Five things were found by testing rather than anticipated, and the design changed:
 
-### Phase 3 — Outfits + weather · ~6-8 h
-Layer-based outfit builder, saved outfits, Open-Meteo integration, warmth scoring, personal
-calibration from comfort ratings, occasion and colour filters.
+1. **Colour naming moved to CIE Lab.** The planned redmean distance named a grey marl
+   t-shirt "khaki" and tan leather "olive". Lab fixed all 21 reference cases.
+2. **Rain is scored over the hours still ahead.** Taking the day's maximum reported
+   "100% rain" at teatime under clear skies, because it had rained at 4am — and pushed
+   the recommender into a raincoat.
+3. **Warm accessories are gated on absolute temperature.** Arithmetic alone put a beanie
+   on a 23 °C outfit whenever the warmth total sat below target.
+4. **Logging a past-dated wear no longer stamps today's weather on it.** That silently
+   poisoned the comfort calibration, which learns from the gap between what you wore and
+   how warm it actually was.
+5. **`index.html` is served `no-cache`.** It names the hashed asset bundles, so a cached
+   copy pinned the browser to a previous build permanently.
 
-### Phase 4 — Gemini, analytics, PWA · ~7-9 h
-Provider abstraction and settings screen, photo tagging jobs, care-label reading, the analytics
-dashboard, PWA manifest and service worker so it installs on your phone with camera capture,
-and a backup script.
+## 7. Open items
 
-**Total: roughly 30-40 hours of build time**, in phases that each end with something working.
-
----
-
-## 6. Open items
-
-- Confirm `192.168.86.251` is outside the router's DHCP pool.
-- Decide whether Gemini gets configured now or after Phase 3 (the app is fully usable without it).
+- Confirm `192.168.86.251` sits outside the router's DHCP pool, or reserve it for the
+  macvlan MAC. It was free at install time (checked by ping and arping).
+- Gemini is unconfigured. The app is fully usable without it; add a key in Settings to
+  turn on automatic tagging and care-label reading.
+- The phone layout is built responsively and its breakpoints are active, but it was not
+  viewed at phone width — the test browser's viewport could not be resized.
