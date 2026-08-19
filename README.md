@@ -63,6 +63,10 @@ laundry view groups them into loads that can actually go in the machine together
 by temperature and colour, with wool and delicates kept separate. Care instructions can
 be typed in or read from a photograph of the care label.
 
+**Pyjamas** are a category of their own, and like a dress they count as covering top and
+bottom, so the builder never pairs them with trousers. They start at lounge formality, so
+they do not turn up in a suggestion for work.
+
 **Jewellery and accessories** are first-class: they flow through outfits and analytics
 like everything else, they never enter the wash pile, and metal tones are treated as
 metal rather than as a clashing colour.

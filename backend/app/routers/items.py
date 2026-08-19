@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from .. import config, db, images, jobs, wash
 from ..constants import (
-    BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DEFAULT_WARMTH,
+    BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS, DEFAULT_FORMALITY, DEFAULT_WARMTH,
     DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER,
     FIT_OPTIONS, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTED_TAGS, TUMBLE_DRY,
     WARMTH_LEVELS, WASH_CYCLES,
@@ -38,6 +38,7 @@ def meta():
         "no_wash_categories": sorted(NO_WASH_CATEGORIES),
         "default_wash_after_wears": DEFAULT_WASH_AFTER_WEARS,
         "default_warmth": DEFAULT_WARMTH,
+        "default_formality": DEFAULT_FORMALITY,
         "patterns": PATTERNS,
         "fit_options": FIT_OPTIONS,
         "suggested_tags": SUGGESTED_TAGS,
@@ -207,11 +208,12 @@ async def upload_item(
 
     item_id = db.execute(
         "INSERT INTO items(name, category, colour_primary, colour_secondary, "
-        "colour_palette, warmth, image_path, thumb_path, wash_after_wears, seasons) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?)",
+        "colour_palette, warmth, formality, image_path, thumb_path, wash_after_wears, seasons) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (
             name, category, primary, secondary, db.dumps(palette),
-            DEFAULT_WARMTH.get(category, 5), saved["image_path"], saved["thumb_path"],
+            DEFAULT_WARMTH.get(category, 5), DEFAULT_FORMALITY.get(category, 3),
+            saved["image_path"], saved["thumb_path"],
             _default_wash(category, None), db.dumps([]),
         ),
     )

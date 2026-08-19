@@ -12,7 +12,7 @@ import colorsys
 import random
 
 from . import db
-from .constants import LAYER_ORDER
+from .constants import LAYER_ORDER, ONE_PIECE_CATEGORIES
 from .serializers import item_out
 
 WARMTH_LAYERS = ("bottom", "top", "mid", "outer", "footwear")
@@ -247,8 +247,8 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
         pinned_items = load_items(pinned)
     pinned_layers = {i["layer"] for i in pinned_items}
 
-    dresses = [i for i in pools.get("top", []) if i.get("category") == "dress"]
-    tops = [i for i in pools.get("top", []) if i.get("category") != "dress"]
+    one_pieces = [i for i in pools.get("top", []) if i.get("category") in ONE_PIECE_CATEGORIES]
+    tops = [i for i in pools.get("top", []) if i.get("category") not in ONE_PIECE_CATEGORIES]
     bottoms = pools.get("bottom", [])
     shoes = pools.get("footwear", [])
     mids = pools.get("mid", [])
@@ -257,9 +257,9 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     jewellery = pools.get("jewellery", [])
 
     missing = []
-    if not tops and not dresses:
+    if not tops and not one_pieces:
         missing.append("top")
-    if not bottoms and not dresses:
+    if not bottoms and not one_pieces:
         missing.append("bottom")
     if not shoes:
         missing.append("footwear")
@@ -287,15 +287,15 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     scored: list[dict] = []
     for _ in range(samples):
         chosen: list[dict] = []
-        if dresses and not bottoms:
-            use_dress = True
-        elif dresses and "bottom" not in pinned_layers:
-            use_dress = random.random() < 0.25
+        if one_pieces and not bottoms:
+            use_one_piece = True
+        elif one_pieces and "bottom" not in pinned_layers:
+            use_one_piece = random.random() < 0.25
         else:
-            use_dress = False
+            use_one_piece = False
 
-        if use_dress:
-            chosen.append(pick(dresses, "top") or random.choice(dresses))
+        if use_one_piece:
+            chosen.append(pick(one_pieces, "top") or random.choice(one_pieces))
         else:
             top = pick(tops, "top")
             bottom = pick(bottoms, "bottom")

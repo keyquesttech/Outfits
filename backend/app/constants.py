@@ -8,6 +8,7 @@ CATEGORY_LAYERS = {
     "shirt": "top",
     "bottom": "bottom",
     "dress": "top",
+    "pyjamas": "top",
     "mid": "mid",
     "knitwear": "mid",
     "outerwear": "outer",
@@ -24,6 +25,11 @@ CATEGORY_LAYERS = {
 
 CATEGORIES = list(CATEGORY_LAYERS.keys())
 
+# Garments that cover the top and the bottom on their own. The outfit builder
+# treats these as a complete layer pair rather than something to wear with
+# trousers.
+ONE_PIECE_CATEGORIES = {"dress", "pyjamas"}
+
 LAYER_ORDER = ["base", "bottom", "top", "mid", "outer", "footwear", "accessory", "jewellery"]
 
 # Categories that are never laundered — jewellery, watches, glasses, bags.
@@ -36,6 +42,7 @@ DEFAULT_WASH_AFTER_WEARS = {
     "shirt": 2,
     "top": 2,
     "dress": 2,
+    "pyjamas": 4,
     "bottom": 4,
     "mid": 5,
     "knitwear": 5,
@@ -53,13 +60,21 @@ DEFAULT_WASH_AFTER_WEARS = {
 
 # Typical insulation by category, used to seed `warmth` before the user tunes it.
 DEFAULT_WARMTH = {
-    "underwear": 1, "sock": 2, "shirt": 3, "top": 3, "dress": 3,
+    "underwear": 1, "sock": 2, "shirt": 3, "top": 3, "dress": 3, "pyjamas": 4,
     "bottom": 4, "mid": 6, "knitwear": 6, "outerwear": 8, "footwear": 3,
     "headwear": 3, "scarf": 4, "glove": 3, "belt": 0, "bag": 0,
     "glasses": 0, "watch": 0, "jewellery": 0,
 }
 
 STATUSES = ["clean", "worn", "needs_wash", "airing", "in_wash"]
+
+# Where a newly added item starts on the 1-5 formality scale.
+DEFAULT_FORMALITY = {
+    "pyjamas": 1, "underwear": 1, "sock": 2, "top": 2, "shirt": 3, "dress": 3,
+    "bottom": 2, "mid": 3, "knitwear": 3, "outerwear": 3, "footwear": 3,
+    "headwear": 2, "scarf": 3, "glove": 3, "belt": 3, "bag": 3,
+    "glasses": 3, "watch": 3, "jewellery": 3,
+}
 
 # How a garment sits on you. Only offered for the categories where it is a real
 # distinction — a sock has no fit worth recording.
@@ -68,6 +83,7 @@ FIT_OPTIONS = {
     "shirt": ["slim", "regular", "loose", "oversized"],
     "top": ["slim", "regular", "loose", "oversized"],
     "dress": ["fitted", "regular", "loose", "oversized"],
+    "pyjamas": ["slim", "regular", "loose", "oversized"],
     "knitwear": ["slim", "regular", "loose", "oversized"],
     "mid": ["slim", "regular", "loose", "oversized"],
     "outerwear": ["fitted", "regular", "loose", "oversized"],

@@ -216,11 +216,8 @@ export default function ItemDetail() {
   // A belt or a ring contributes no insulation at all, so calling it "Cold" is
   // nonsense — those categories say so plainly instead of picking a band.
   const addsWarmth = (meta.default_warmth?.[item.category] ?? 5) > 0
-  const warmthLabel = addsWarmth
-    ? (nearestOption(warmthOptions(meta, item.category), item.warmth)?.label ?? '—')
-    : 'None'
-  const formalityLabel =
-    nearestOption(meta.formality_levels || [], item.formality)?.label ?? '—'
+  const warmthBand = nearestOption(warmthOptions(meta, item.category), item.warmth)
+  const formalityBand = nearestOption(meta.formality_levels || [], item.formality)
 
   const care = item.care
   const careBits = care ? [
@@ -317,7 +314,7 @@ export default function ItemDetail() {
             <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={15} /> Remove</button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="card px-3 py-2.5">
               <p className="label">Worn</p>
               <p className="mt-0.5 text-xl font-bold tabular-nums">{item.total_wears}</p>
@@ -336,9 +333,18 @@ export default function ItemDetail() {
             </div>
             <div className="card px-3 py-2.5">
               <p className="label">Warmth</p>
-              <p className="mt-0.5 text-xl font-bold">{warmthLabel}</p>
+              <p className="mt-0.5 text-xl font-bold">
+                {addsWarmth ? (warmthBand?.label ?? '—') : 'None'}
+              </p>
               <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>
-                {addsWarmth ? `formality · ${formalityLabel}` : `adds no warmth · ${formalityLabel}`}
+                {addsWarmth ? (warmthBand?.hint ?? '') : 'adds no warmth'}
+              </p>
+            </div>
+            <div className="card px-3 py-2.5">
+              <p className="label">Formality</p>
+              <p className="mt-0.5 text-xl font-bold">{formalityBand?.label ?? '—'}</p>
+              <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>
+                {formalityBand?.hint ?? ''}
               </p>
             </div>
           </div>
