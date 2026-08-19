@@ -32,7 +32,6 @@ def _settings() -> dict:
         "metoffice_key": db.get_setting("metoffice_api_key", ""),
         "optimize": db.get_setting("metoffice_optimize", "1") != "0",
         "warnings_on": db.get_setting("warnings_enabled", "1") != "0",
-        "warnings_region": db.get_setting("warnings_region", "uk") or "uk",
     }
 
 
@@ -121,11 +120,38 @@ def fetch(force: bool = False) -> dict:
     return _with_warnings(dict(data), cfg)
 
 
+def _no_warnings(reason: str, message: str) -> dict:
+    return {"available": False, "reason": reason, "message": message,
+            "warnings": [], "count": 0}
+
+
 def _with_warnings(data: dict, cfg: dict) -> dict:
-    if cfg["warnings_on"]:
-        data["warnings"] = warnings.fetch(cfg["warnings_region"])
-    else:
-        data["warnings"] = {"available": False, "disabled": True, "warnings": []}
+    """Attach warnings, but only where they actually mean something.
+
+    They are a Met Office product covering the UK, published per region, so they
+    ride with the Met Office forecast only, for the region containing the
+    configured location, and only for what is in force today.
+    """
+    if not cfg["warnings_on"]:
+        data["warnings"] = _no_warnings("disabled", "Warnings are switched off.")
+        return data
+
+    if cfg["provider"] != metoffice.NAME:
+        data["warnings"] = _no_warnings(
+            "provider",
+            "Met Office warnings appear when the Met Office is the forecast source.")
+        return data
+
+    region = warnings.region_for(cfg["lat"], cfg["lon"])
+    if not region["in_uk"]:
+        data["warnings"] = _no_warnings(
+            "outside_uk",
+            f"Met Office warnings only cover the UK, and {cfg['name']} is outside it.")
+        return data
+
+    result = warnings.fetch(region["code"], today_only=True)
+    result["derived_region"] = region
+    data["warnings"] = result
     return data
 
 

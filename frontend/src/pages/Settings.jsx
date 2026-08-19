@@ -159,6 +159,7 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
   const current = form.weather_provider || 'open-meteo'
   const usage = data.weather_usage || {}
   const keySet = data.settings.metoffice_api_key_set
+  const region = data.warning_region
   const optimize = form.metoffice_optimize !== '0'
   const warningsOn = form.warnings_enabled !== '0'
 
@@ -284,35 +285,43 @@ function WeatherSettings({ data, form, setForm, save, busy }) {
 
       <hr style={{ borderColor: 'var(--border)' }} />
 
-      <Field label="Severe weather warnings"
-             hint="Met Office public warnings feed. Free, no key, works with either forecast source.">
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={() => setForm({ ...form, warnings_enabled: warningsOn ? '0' : '1' })}
-            className="chip" style={warningsOn
-              ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
-              : undefined}
-          >
-            <Icon name="storm" size={13} /> Warnings {warningsOn ? 'on' : 'off'}
-          </button>
-          {warningsOn && (
-            <select
-              className="select"
-              value={form.warnings_region || 'uk'}
-              onChange={(e) => setForm({ ...form, warnings_region: e.target.value })}
-            >
-              {(data.warning_regions || []).map((r) => (
-                <option key={r.code} value={r.code}>{r.label}</option>
-              ))}
-            </select>
+      <Field
+        label="Severe weather warnings"
+        hint="Met Office warnings in force today, for the region covering your location."
+      >
+        <button
+          type="button"
+          onClick={() => setForm({ ...form, warnings_enabled: warningsOn ? '0' : '1' })}
+          className="chip" style={warningsOn
+            ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
+            : undefined}
+        >
+          <Icon name="storm" size={13} /> Warnings {warningsOn ? 'on' : 'off'}
+        </button>
+      </Field>
+
+      {warningsOn && (
+        <div className="card px-3.5 py-3">
+          <p className="label">Region</p>
+          <p className="mt-1 text-sm font-semibold">
+            {region?.in_uk ? region.label : 'Outside the UK'}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            {region?.in_uk
+              ? 'Follows your location — set it below to change region.'
+              : 'Met Office warnings only cover the UK, so none will be shown.'}
+          </p>
+          {current !== 'metoffice' && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--warn)' }}>
+              Warnings appear on the Today page only while the Met Office is the
+              forecast source.
+            </p>
           )}
         </div>
-      </Field>
+      )}
 
       <button className="btn btn-primary" onClick={() => save({
         warnings_enabled: warningsOn ? '1' : '0',
-        warnings_region: form.warnings_region || 'uk',
       })} disabled={busy}>
         {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save warnings
       </button>

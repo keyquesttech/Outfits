@@ -35,9 +35,19 @@ def weather_usage():
 
 
 @router.get("/weather/warnings")
-def weather_warnings(region: str | None = None, refresh: bool = False):
-    region = region or db.get_setting("warnings_region", "uk")
-    return weather.warnings.fetch(region, force=refresh)
+def weather_warnings(region: str | None = None, refresh: bool = False,
+                     today_only: bool = True):
+    """Region defaults to whichever one covers the configured location."""
+    if not region:
+        lat = float(db.get_setting("latitude", "51.5072") or 51.5072)
+        lon = float(db.get_setting("longitude", "-0.1276") or -0.1276)
+        derived = weather.warnings.region_for(lat, lon)
+        if not derived["in_uk"]:
+            raise HTTPException(
+                400, "Met Office warnings only cover the UK, and the configured "
+                     "location is outside it.")
+        region = derived["code"]
+    return weather.warnings.fetch(region, force=refresh, today_only=today_only)
 
 
 @router.get("/geocode")

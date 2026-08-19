@@ -25,8 +25,11 @@ function Warnings({ warnings }) {
       <div className="flex items-center gap-2 px-4 pt-3">
         <span style={{ color: worst }}><Icon name="storm" size={18} /></span>
         <p className="text-sm font-bold">
-          {list.length} Met Office warning{list.length === 1 ? '' : 's'} · {warnings.region_label}
+          {list.length} Met Office warning{list.length === 1 ? '' : 's'} today
         </p>
+        <span className="ml-auto truncate text-xs" style={{ color: 'var(--muted)' }}>
+          {warnings.derived_region?.label || warnings.region_label}
+        </span>
       </div>
       <div className="space-y-1.5 px-4 py-3">
         {shown.map((w, i) => (
@@ -37,11 +40,21 @@ function Warnings({ warnings }) {
             <span className="min-w-0">
               <span className="block font-medium">
                 {w.hazard ? `${w.hazard[0].toUpperCase()}${w.hazard.slice(1)}` : w.title}
-                {w.area ? ` — ${w.area}` : ''}
+                {w.active_now && (
+                  <span className="ml-1.5 text-[0.65rem] font-bold uppercase tracking-wide"
+                        style={{ color: WARNING_COLOUR[w.level] || worst }}>
+                    in force
+                  </span>
+                )}
               </span>
-              {w.valid_from && (
+              {w.when && (
+                <span className="block text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+                  {w.when}
+                </span>
+              )}
+              {w.counties && (
                 <span className="block text-xs" style={{ color: 'var(--muted)' }}>
-                  {w.valid_from} to {w.valid_to}
+                  {w.counties}
                 </span>
               )}
             </span>

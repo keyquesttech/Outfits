@@ -30,9 +30,11 @@ one-tick **Optimise for the free plan** mode: it makes a single three-hourly req
 refresh instead of two and caches for three hours, which works out at roughly 240 calls a
 month rather than 2,880. Usage is counted and shown in Settings.
 
-**Severe weather warnings.** Met Office public warnings for your region, shown on the
-Today page with hazard, area and validity period. This feed needs no key and no account,
-so warnings work whichever forecast source you pick.
+**Severe weather warnings.** Met Office warnings shown on the Today page, deliberately
+narrow: only while the Met Office is the selected forecast source, only for the region
+covering your location (derived from your coordinates, not picked from a list), and only
+for warnings in force today. Times are 24-hour, so "until 09:00 tomorrow" rather than the
+feed's raw "0900 Thu 20 Aug".
 
 **Set your location** by searching for a place name, from your device's GPS, or by typing
 coordinates.
@@ -226,6 +228,19 @@ is careful but unproven. Press "Test connection" first: it will tell you if anyt
 missing.
 
 ---
+
+## Weather warnings
+
+Warnings come from the Met Office public RSS feed, which needs no key. They appear only
+when all three of these hold:
+
+1. The Met Office is the selected forecast source — they are a Met Office product, and
+   showing them beside an Open-Meteo forecast would misattribute them.
+2. Your location is in the UK. The region is derived from your coordinates by matching
+   against anchor towns in each of the 16 warning regions; a single centroid per region
+   is not accurate enough, since it places Cardiff in South West England.
+3. The warning is in force at some point today — active now, or starting later today.
+   One that ended this morning or does not begin until Thursday is not shown.
 
 ## Device location
 

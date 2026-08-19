@@ -12,7 +12,7 @@ ALLOWED = {
     "ai_provider", "gemini_api_key", "gemini_model", "gemini_image_model",
     "latitude", "longitude", "timezone", "location_name", "units", "warmth_offset",
     "weather_provider", "metoffice_api_key", "metoffice_optimize",
-    "warnings_enabled", "warnings_region",
+    "warnings_enabled",
 }
 
 
@@ -37,8 +37,12 @@ def get_settings():
         "providers": ["none", "gemini"],
         "weather_providers": weather.provider_info(),
         "weather_usage": weather.usage(),
-        "warning_regions": [{"code": c, "label": l}
-                            for c, l in weather.warnings.REGIONS.items()],
+        # The warning region follows the configured location rather than being
+        # picked by hand, so the UI shows what was derived.
+        "warning_region": weather.warnings.region_for(
+            float(db.get_setting("latitude", "51.5072") or 51.5072),
+            float(db.get_setting("longitude", "-0.1276") or -0.1276),
+        ),
     }
 
 
