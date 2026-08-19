@@ -1,0 +1,24 @@
+[Unit]
+Description=Publish outfits.local over mDNS
+# Runs in the host's network stack, because that is where avahi-daemon lives and
+# announces. It only ADDS a record; the existing hostname record is untouched.
+After=avahi-daemon.service outfits-netns.service
+Wants=avahi-daemon.service
+Requires=outfits-netns.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/outfits
+# avahi-publish holds the record for as long as it runs, so this stays in the
+# foreground on purpose.
+ExecStart=/usr/bin/avahi-publish -a -R $OUTFITS_HOSTNAME $OUTFITS_IP
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,33 @@
+[Unit]
+Description=Outfits wardrobe manager
+Documentation=file:/home/pi/Outfits/README.md
+Requires=outfits-netns.service
+After=outfits-netns.service network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/Outfits
+
+# Runs inside the namespace, so binding :80 here cannot collide with anything
+# listening on :80 in the host's network stack.
+NetworkNamespacePath=/var/run/netns/outfits
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+Environment=PYTHONPATH=/home/pi/Outfits/backend
+Environment=OUTFITS_DATA=/home/pi/Outfits/data
+ExecStart=/home/pi/Outfits/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 80
+
+Restart=always
+RestartSec=5
+
+# The app only ever needs its own directory.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/pi/Outfits/data
+
+[Install]
+WantedBy=multi-user.target

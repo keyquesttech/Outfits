@@ -1,0 +1,15 @@
+[Unit]
+Description=Outfits network namespace (own MAC and LAN IP, isolated from the host stack)
+Documentation=file:/home/pi/Outfits/PLAN.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/etc/default/outfits
+ExecStart=/home/pi/Outfits/deploy/netns-up.sh
+ExecStop=/home/pi/Outfits/deploy/netns-down.sh
+
+[Install]
+WantedBy=multi-user.target
