@@ -12,6 +12,36 @@ import { Chip, Field, Icon, titleCase } from './ui.jsx'
 export const autoCapitalise = (value) =>
   String(value ?? '').replace(/(^|\s)(\S)/g, (_, gap, ch) => gap + ch.toUpperCase())
 
+/**
+ * Swatches read from the photo, offered as a shortcut for one colour field.
+ *
+ * They are only ever a suggestion — the primary and secondary colour fields are
+ * what the app matches on, so the swatches fill those rather than standing on
+ * their own.
+ */
+function PaletteRow({ palette, value, onPick }) {
+  if (!palette?.length) return null
+  return (
+    <div className="rail mt-1.5">
+      {palette.map((c, i) => {
+        const on = (value || '').toLowerCase() === c.name.toLowerCase()
+        return (
+          <button
+            key={i} type="button" onClick={() => onPick(autoCapitalise(c.name))}
+            className="chip"
+            style={on ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
+            title={`${c.name} — ${Math.round(c.share * 100)}% of the photo`}
+          >
+            <span className="h-3 w-3 rounded-full ring-1"
+                  style={{ background: c.hex, '--tw-ring-color': 'var(--border)' }} />
+            {c.name}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 /** Text input that capitalises words and offers what has been typed before. */
 function TextField({ label, hint, value, onChange, options = [], capitalise = true, ...rest }) {
   const listId = useId()
@@ -227,36 +257,32 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         />
       </div>
 
-      {palette?.length > 0 && (
-        <Field label="Colours found in the photo" hint="Tap one to set it as the main colour.">
-          <div className="rail">
-            {palette.map((c, i) => (
-              <button
-                key={i} type="button"
-                onClick={() => setForm({ ...form, colour_primary: autoCapitalise(c.name) })}
-                className="chip"
-                style={form.colour_primary === c.name
-                  ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
-              >
-                <span className="h-3 w-3 rounded-full ring-1"
-                      style={{ background: c.hex, '--tw-ring-color': 'var(--border)' }} />
-                {c.name}
-              </button>
-            ))}
-          </div>
-        </Field>
-      )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <TextField
-          label="Primary colour" value={form.colour_primary} options={known.colour_primary}
-          onChange={(v) => setForm({ ...form, colour_primary: v })}
-        />
-        <TextField
-          label="Secondary colour" value={form.colour_secondary} options={known.colour_secondary}
-          onChange={(v) => setForm({ ...form, colour_secondary: v })}
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <TextField
+            label="Primary colour" value={form.colour_primary} options={known.colour_primary}
+            onChange={(v) => setForm({ ...form, colour_primary: v })}
+          />
+          <PaletteRow palette={palette} value={form.colour_primary}
+                      onPick={(v) => setForm({ ...form, colour_primary: v })} />
+        </div>
+        <div>
+          <TextField
+            label="Secondary colour" value={form.colour_secondary}
+            options={known.colour_secondary}
+            onChange={(v) => setForm({ ...form, colour_secondary: v })}
+          />
+          <PaletteRow palette={palette} value={form.colour_secondary}
+                      onPick={(v) => setForm({ ...form, colour_secondary: v })} />
+        </div>
       </div>
+
+      {palette?.length > 0 && (
+        <p className="-mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+          The swatches are read from the photo as a starting point. What you leave in the two
+          fields above is what outfit matching actually uses.
+        </p>
+      )}
 
       <Field label="Pattern">
         <div className="rail">

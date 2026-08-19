@@ -96,6 +96,7 @@ export default function ItemDetail() {
   const [busy, setBusy] = useState(false)
   const [allWorn, setAllWorn] = useState(false)
   const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [loadingPhoto, setLoadingPhoto] = useState(false)
   const photoRef = useRef(null)
 
   useEffect(() => { window.scrollTo(0, 0) }, [id])
@@ -108,6 +109,23 @@ export default function ItemDetail() {
     setBusy(true)
     try { await fn(); if (message) toast(message, 'success'); await reload(true) }
     catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+  }
+
+  // Pull the stored photo back down as a File so the same editor can rotate and
+  // crop it, rather than making you re-take the picture to straighten it.
+  const editCurrentPhoto = async () => {
+    if (!item.image_url) return
+    setLoadingPhoto(true)
+    try {
+      const res = await fetch(item.image_url)
+      if (!res.ok) throw new Error(`Could not load the photo (${res.status})`)
+      const blob = await res.blob()
+      setPendingPhoto(new File([blob], `${item.name || 'photo'}.jpg`, { type: blob.type }))
+    } catch (e) {
+      toast(e.message, 'error')
+    } finally {
+      setLoadingPhoto(false)
+    }
   }
 
   const removeWear = async (w) => {
@@ -176,8 +194,12 @@ export default function ItemDetail() {
                    e.target.value = ''
                  }} />
           <div className="flex gap-2">
+            <button className="btn flex-1" onClick={editCurrentPhoto}
+                    disabled={busy || loadingPhoto || !item.image_url}>
+              {loadingPhoto ? <Spinner size={15} /> : <Icon name="crop" size={15} />} Edit photo
+            </button>
             <button className="btn flex-1" onClick={() => photoRef.current?.click()} disabled={busy}>
-              <Icon name="camera" size={15} /> Replace photo
+              <Icon name="camera" size={15} /> Replace
             </button>
             <button className="btn" onClick={() => act(() => api.analyse(item.id), 'AI is re-tagging this item.')}
                     disabled={busy} title="Re-run AI tagging">
@@ -226,7 +248,6 @@ export default function ItemDetail() {
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
               {titleCase(item.category)}
-              {item.fit ? ` · ${titleCase(item.fit)} fit` : ''}
               {item.subcategory ? ` · ${item.subcategory}` : ''}
               {item.brand ? ` · ${item.brand}` : ''}
               {item.material ? ` · ${item.material}` : ''}
@@ -330,8 +351,14 @@ export default function ItemDetail() {
             </div>
           </Section>
 
-          {(item.seasons?.length > 0 || item.tags?.length > 0 || item.water_proof || item.wind_proof) && (
+          {(item.fit || item.seasons?.length > 0 || item.tags?.length > 0
+            || item.water_proof || item.wind_proof) && (
             <div className="flex flex-wrap gap-1.5">
+              {item.fit && (
+                <span className="chip" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }}>
+                  {titleCase(item.fit)} fit
+                </span>
+              )}
               {item.water_proof && <span className="chip">Waterproof</span>}
               {item.wind_proof && <span className="chip">Windproof</span>}
               {item.seasons?.map((s) => <span key={s} className="chip">{titleCase(s)}</span>)}

@@ -113,78 +113,130 @@ def hex_of(rgb: tuple) -> str:
     return "#{:02x}{:02x}{:02x}".format(*rgb[:3])
 
 
-def extract_palette(img: Image.Image, count: int = 6) -> list[dict]:
-    """Dominant garment colours, with the backdrop suppressed.
+# How close, in Lab units, a colour must be to the border ring before it counts
+# as the backdrop rather than part of the garment.
+BACKDROP_TOLERANCE = 10.0
 
-    The four corners of a clothing photo are almost always background, so any
-    cluster sitting close to the corner colour is dropped before ranking.
+
+def _median_colour(samples: list[tuple]) -> tuple:
+    """Component-wise median. Resists a stray dark pixel in the border ring."""
+    if not samples:
+        return (255, 255, 255)
+    return tuple(sorted(s[i] for s in samples)[len(samples) // 2] for i in range(3))
+
+
+def _backdrop(small: Image.Image) -> tuple[tuple, bool]:
+    """Sample the border ring and decide whether it is a clean backdrop.
+
+    Four corner pixels used to decide this, which one dark fold or a shadow in
+    a corner was enough to throw off. A ring around the whole edge is a far more
+    stable read of what the garment is sitting on.
+    """
+    w, h = small.size
+    step = max(1, min(w, h) // 40)
+    ring = []
+    for x in range(0, w, step):
+        ring.append(small.getpixel((x, 0)))
+        ring.append(small.getpixel((x, h - 1)))
+    for y in range(0, h, step):
+        ring.append(small.getpixel((0, y)))
+        ring.append(small.getpixel((w - 1, y)))
+    bg = _median_colour(ring)
+    spread = sum(_colour_distance(bg, c) for c in ring) / len(ring)
+    # In Lab units a plain wall barely varies; a busy room varies a lot.
+    return bg, spread < 14
+
+
+def extract_palette(img: Image.Image, count: int = 6) -> list[dict]:
+    """Suggest the dominant garment colours in a photo.
+
+    This is a starting point for tagging, not the answer: whatever ends up in
+    the item's primary and secondary colour fields is what the app actually uses.
+
+    Two things make the guess better than plain counting. Pixels are weighted
+    towards the middle of the frame, because a garment is nearly always centred
+    and the edges are floor, hanger and wall. And the backdrop is read from a
+    ring around the whole border rather than four corner pixels.
     """
     small = img.convert("RGB").copy()
-    small.thumbnail((220, 220), Image.LANCZOS)
+    small.thumbnail((180, 180), Image.LANCZOS)
     w, h = small.size
-    if w < 4 or h < 4:
+    if w < 8 or h < 8:
         return []
 
-    corners = [
-        small.getpixel((1, 1)),
-        small.getpixel((w - 2, 1)),
-        small.getpixel((1, h - 2)),
-        small.getpixel((w - 2, h - 2)),
-    ]
-    bg = tuple(sum(c[i] for c in corners) // 4 for i in range(3))
-    corner_spread = max(_colour_distance(bg, c) for c in corners)
-    # Only treat it as a clean backdrop when the corners actually agree.
-    backdrop = corner_spread < 90
+    bg, is_backdrop = _backdrop(small)
 
-    quantised = small.quantize(colors=12, method=Image.Quantize.FASTOCTREE)
+    # Median cut splits by actual colour spread, so a garment with highlights
+    # and shadow does not eat every slot the way fast octree allowed.
+    quantised = small.quantize(colors=16, method=Image.Quantize.MEDIANCUT)
     palette = quantised.getpalette() or []
-    total = w * h
+    indexes = list(quantised.getdata())
+
+    # Separable centre weighting: full weight in the middle, a quarter at the edge.
+    cx, cy = (w - 1) / 2 or 1, (h - 1) / 2 or 1
+    col_w = [1.0 - 0.75 * (abs(x - cx) / cx) for x in range(w)]
+    row_w = [1.0 - 0.75 * (abs(y - cy) / cy) for y in range(h)]
+
+    weights: dict[int, float] = {}
+    for y in range(h):
+        ry = row_w[y]
+        base = y * w
+        for x in range(w):
+            index = indexes[base + x]
+            weights[index] = weights.get(index, 0.0) + ry * col_w[x]
+
     clusters = []
-    for pixels, index in quantised.getcolors(total) or []:
+    for index, weight in weights.items():
         rgb = tuple(palette[index * 3: index * 3 + 3])
         if len(rgb) >= 3:
-            clusters.append((pixels, rgb))
+            clusters.append((weight, rgb))
 
-    entries = [c for c in clusters if not backdrop or _colour_distance(c[1], bg) >= 18]
+    # Only drop clusters that genuinely *are* the backdrop. Compression noise on
+    # a plain wall spans a couple of Lab units; a threshold of 18 was wide enough
+    # to swallow an olive garment sitting on a tan floor, which then let the
+    # fallback restore the floor and call the item khaki.
+    entries = [c for c in clusters
+               if not is_backdrop or _colour_distance(c[1], bg) >= BACKDROP_TOLERANCE]
 
     # A white shirt on a white backdrop would otherwise be erased entirely,
     # leaving only buttons and shadows to name the colour by. Fall back only when
     # suppression left virtually nothing — a ring or a pair of boots legitimately
     # covers a small slice of the frame, and that is suppression working.
-    kept = sum(p for p, _ in entries)
+    total = sum(weight for weight, _ in clusters) or 1.0
+    kept = sum(weight for weight, _ in entries)
     if not entries or kept < 0.02 * total:
-        entries = clusters or [(1, bg)]
+        entries = clusters or [(1.0, bg)]
 
     # Quantisation happily returns six shades of the same burgundy. Merge the
     # clusters that a person would give one name, so the palette reads as
     # "burgundy, silver" rather than the same word five times.
     merged: dict[str, dict] = {}
-    for pixels, rgb in entries:
+    for weight, rgb in entries:
         name = name_colour(rgb)
         slot = merged.get(name)
         if slot is None:
             # `lead` is the biggest single cluster seen for this name; its shade
-            # becomes the swatch, while `pixels` accumulates the whole group.
-            merged[name] = {"pixels": pixels, "lead": pixels, "rgb": rgb, "name": name}
+            # becomes the swatch, while `weight` accumulates the whole group.
+            merged[name] = {"weight": weight, "lead": weight, "rgb": rgb, "name": name}
         else:
-            slot["pixels"] += pixels
-            if pixels > slot["lead"]:
-                slot["lead"] = pixels
+            slot["weight"] += weight
+            if weight > slot["lead"]:
+                slot["lead"] = weight
                 slot["rgb"] = rgb
 
-    ranked = sorted(merged.values(), key=lambda e: -e["pixels"])
-    total = sum(e["pixels"] for e in ranked) or 1
+    ranked = sorted(merged.values(), key=lambda e: -e["weight"])
+    grand = sum(e["weight"] for e in ranked) or 1.0
     # Anti-aliased edges leave slivers of colours the garment does not really
     # have. Anything under 3% is edge noise, not part of the palette.
-    significant = [e for e in ranked if e["pixels"] / total >= 0.03] or ranked[:1]
+    significant = [e for e in ranked if e["weight"] / grand >= 0.03] or ranked[:1]
     ranked = significant[:count]
-    shown = sum(e["pixels"] for e in ranked) or 1
+    shown = sum(e["weight"] for e in ranked) or 1.0
     return [
         {
             "hex": hex_of(e["rgb"]),
             "rgb": list(e["rgb"]),
             "name": e["name"],
-            "share": round(e["pixels"] / shown, 4),
+            "share": round(e["weight"] / shown, 4),
         }
         for e in ranked
     ]

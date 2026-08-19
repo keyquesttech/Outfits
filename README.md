@@ -10,14 +10,17 @@ what needs washing.
 
 ## What it does
 
-**Photo wardrobe.** Upload or photograph an item and it is catalogued. Colours are
-extracted from the photo automatically — this is plain image processing, not AI, so it
-works with no API key and no model.
+**Photo wardrobe.** Upload or photograph an item and it is catalogued. Colours are read
+from the photo automatically — plain image processing, not AI, so it works with no API key
+and no model. Pixels are weighted towards the middle of the frame, since a garment is
+nearly always centred and the edges are hanger, floor and wall, and the backdrop is read
+from a ring around the whole border. The swatches are only a **starting point**: they fill
+the primary and secondary colour fields, and those fields are what outfit matching uses.
 
-**Rotate and crop before uploading.** Every photo gets an optional editor: rotate in
-90° steps, drag a crop box, or lock it to 3:4, 1:1 or 4:3. It runs in the browser, so
-what you see is exactly what is stored — the same editor opens when replacing an
-existing item's photo.
+**Rotate and crop, before or after uploading.** Every photo gets an optional editor:
+rotate in 90° steps, drag a crop box, or lock it to 3:4, 1:1 or 4:3. It runs in the
+browser, so what you see is exactly what is stored. "Edit photo" on an item reopens the
+picture already saved, so a crooked shot can be straightened without taking it again.
 
 **Tag by hand or let AI do it.** When adding items you choose: *Tag them myself* opens a
 form for each photo right after uploading, stepping through them one at a time with the
