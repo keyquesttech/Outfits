@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
-from .. import db
-from ..constants import CATEGORY_LAYERS
+from .. import categories, db
 from ..models import OutfitIn
 from ..serializers import load_items, outfit_out
 
@@ -52,9 +51,10 @@ def _write_items(outfit_id: int, item_ids: list[int]) -> None:
         f"SELECT id, category FROM items WHERE id IN ({','.join('?' * len(item_ids))})",
         tuple(item_ids),
     ) if item_ids else []
+    layers = {k: c["layer"] for k, c in categories.by_key().items()}
     db.executemany(
         "INSERT OR IGNORE INTO outfit_items(outfit_id, item_id, layer) VALUES (?,?,?)",
-        [(outfit_id, r["id"], CATEGORY_LAYERS.get(r["category"], "accessory")) for r in rows],
+        [(outfit_id, r["id"], layers.get(r["category"], "accessory")) for r in rows],
     )
 
 

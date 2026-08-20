@@ -33,6 +33,12 @@ const qs = (params) => {
 export const api = {
   meta: () => get('/api/meta'),
   fieldValues: () => get('/api/field-values'),
+
+  categories: () => get('/api/categories'),
+  createCategory: (body) => post('/api/categories', body),
+  updateCategory: (key, body) => patch(`/api/categories/${key}`, body),
+  deleteCategory: (key, moveTo) =>
+    del(`/api/categories/${key}` + (moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : '')),
   health: () => get('/api/health'),
 
   items: (params) => get('/api/items' + qs(params)),
@@ -43,6 +49,9 @@ export const api = {
   setStatus: (id, status) => post(`/api/items/${id}/status`, { status }),
   analyse: (id, kind = 'analyse_item') => post(`/api/items/${id}/analyse?kind=${kind}`),
   putCare: (id, body) => put(`/api/items/${id}/care`, body),
+  rescanItemColours: (id) => post(`/api/items/${id}/rescan-colours`),
+  rescanColours: (overwrite = false) =>
+    post(`/api/colours/rescan?overwrite=${overwrite}`),
 
   uploadItem: (file, fields = {}) => {
     const form = new FormData()

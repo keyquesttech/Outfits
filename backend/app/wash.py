@@ -8,8 +8,7 @@ kept apart.
 
 from datetime import date
 
-from . import db, images
-from .constants import DEFAULT_WASH_AFTER_WEARS, NO_WASH_CATEGORIES
+from . import categories, colours, db
 from .serializers import item_out, wash_threshold
 
 # A load is defined by the machine settings it needs.
@@ -26,7 +25,8 @@ def temp_band(temp: int | None) -> str:
 
 
 def default_threshold(category: str) -> int:
-    return DEFAULT_WASH_AFTER_WEARS.get(category, 3)
+    known = categories.get(category)
+    return int(known["wash_after_wears"]) if known else 3
 
 
 def refresh_status(item_id: int) -> dict | None:
@@ -34,12 +34,13 @@ def refresh_status(item_id: int) -> dict | None:
     row = db.query_one("SELECT * FROM items WHERE id = ?", (item_id,))
     if not row:
         return None
-    category = row["category"]
     threshold = wash_threshold(row)
     worn = int(row["wears_since_wash"] or 0)
     status = row["status"]
 
-    if category in NO_WASH_CATEGORIES or threshold <= 0:
+    # A threshold of zero is what "never washed" means — jewellery, watches,
+    # glasses, bags, and any category the user sets to zero.
+    if threshold <= 0:
         status = "clean"
     elif status in ("in_wash", "airing"):
         pass  # user-driven states are left alone
@@ -126,7 +127,7 @@ def _load_key(item: dict, care: dict | None) -> tuple:
     cycle = care.get("wash_cycle") or "normal"
     if cycle in ("delicate", "wool"):
         return (cycle, temp_band(care.get("wash_temp") or 30))
-    group = care.get("colour_group") or images.colour_group(item.get("colour_primary"))
+    group = care.get("colour_group") or colours.colour_group(item.get("colour_primary"))
     return (group, temp_band(care.get("wash_temp")))
 
 
@@ -150,10 +151,11 @@ def laundry_plan() -> dict:
         "ORDER BY last_worn DESC"
     )
     care_rows = {c["item_id"]: c for c in db.query("SELECT * FROM care_instructions")}
+    catalogue = categories.by_key()
 
     loads: dict[tuple, dict] = {}
     for row in rows:
-        item = item_out(row)
+        item = item_out(row, catalogue)
         care = care_rows.get(item["id"])
         key = _load_key(item, care)
         group, temp = key
@@ -187,9 +189,10 @@ def due_soon(within: int = 1) -> list[dict]:
         "SELECT * FROM items WHERE is_active = 1 AND status IN ('worn','clean') "
         "AND wears_since_wash > 0"
     )
+    catalogue = categories.by_key()
     out = []
     for row in rows:
-        item = item_out(row)
+        item = item_out(row, catalogue)
         if item["launderable"] and item["wears_left"] is not None and 0 < item["wears_left"] <= within:
             out.append(item)
     return sorted(out, key=lambda i: i["wears_left"])

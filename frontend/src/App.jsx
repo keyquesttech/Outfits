@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ConfirmHost, Icon, Spinner, ToastHost } from './components/ui.jsx'
 import { useAsync } from './hooks.js'
@@ -93,7 +93,15 @@ function BottomNav() {
 }
 
 export default function App() {
-  const { data: meta, loading } = useAsync(() => api.meta(), [])
+  const { data: meta, loading, reload } = useAsync(() => api.meta(), [])
+
+  // Categories are the user's to change, so meta is no longer fixed for the
+  // life of the session. Anything that edits them calls this, and every form
+  // reading `meta.categories` picks the change up without a page reload.
+  const value = useMemo(
+    () => ({ ...(meta || {}), reloadMeta: () => reload(true) }),
+    [meta, reload],
+  )
 
   if (loading) {
     return (
@@ -104,7 +112,7 @@ export default function App() {
   }
 
   return (
-    <MetaCtx.Provider value={meta || {}}>
+    <MetaCtx.Provider value={value}>
       <ToastHost>
         <ConfirmHost>
         <TopBar />

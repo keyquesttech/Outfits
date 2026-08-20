@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useAsync, useAutoSave, useDebounced, useLocalState } from '../hooks.js'
 import { applyTheme } from '../theme.js'
+import CategoryManager from '../components/CategoryManager.jsx'
 import {
   Chip, ErrorNote, Field, Icon, Section, Spinner, WeatherIcon, titleCase, useToast,
 } from '../components/ui.jsx'
@@ -403,6 +405,62 @@ function WeatherSettings({ data, form, setForm, queue }) {
 
 /* ---------------------------------------------------------------- page */
 
+function ColourMaintenance() {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [result, setResult] = useState(null)
+
+  const run = async (overwrite) => {
+    setBusy(true)
+    try {
+      const data = await api.rescanColours(overwrite)
+      setResult(data)
+      toast(data.changed.length
+        ? `Re-read ${data.scanned} photos, ${data.changed.length} colour${data.changed.length === 1 ? '' : 's'} changed.`
+        : `Re-read ${data.scanned} photos. Nothing changed.`, 'success')
+    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="card px-4 py-4">
+      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+        Every photo carries the colours read from it the day it was added. Reading them
+        again applies the current colour engine to the whole wardrobe — useful after an
+        upgrade, and harmless to run twice.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className="btn" onClick={() => run(false)} disabled={busy}>
+          {busy ? <Spinner size={15} /> : <Icon name="refresh" size={15} />}
+          Fill in what is missing
+        </button>
+        <button className="btn" onClick={() => run(true)} disabled={busy}>
+          <Icon name="refresh" size={15} /> Overwrite every colour
+        </button>
+      </div>
+      <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
+        The first only touches items whose colour is blank or unrecognised, so anything you
+        chose by hand is left alone. The second replaces all of them with what the photo says.
+      </p>
+      {result && (
+        <div className="mt-3 text-xs" style={{ color: 'var(--muted)' }}>
+          <p>{result.scanned} photos read{result.unreadable ? `, ${result.unreadable} could not be opened` : ''}.</p>
+          {result.changed.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5">
+              {result.changed.slice(0, 12).map((c) => (
+                <li key={c.id}>
+                  <Link to={`/wardrobe/${c.id}`} style={{ color: 'var(--accent)' }}>{c.name}</Link>
+                  {' '}— {c.was || 'nothing'} → <strong>{c.now || 'nothing'}</strong>
+                </li>
+              ))}
+              {result.changed.length > 12 && <li>and {result.changed.length - 12} more.</li>}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Settings() {
   const toast = useToast()
   const { data, loading, error, reload } = useAsync(() => api.settings(), [])
@@ -596,6 +654,14 @@ export default function Settings() {
             </>
           ) : <Spinner />}
         </div>
+      </Section>
+
+      <Section title="Categories">
+        <CategoryManager />
+      </Section>
+
+      <Section title="Colours">
+        <ColourMaintenance />
       </Section>
 
       <Section title="About">

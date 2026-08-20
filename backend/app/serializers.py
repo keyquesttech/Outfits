@@ -1,22 +1,34 @@
-from . import db
-from .constants import CATEGORY_LAYERS, DEFAULT_WASH_AFTER_WEARS, NO_WASH_CATEGORIES
+from . import categories, db
 
 
 def photo_url(rel: str | None) -> str | None:
     return f"/photos/{rel}" if rel else None
 
 
-def wash_threshold(item: dict) -> int:
+def wash_threshold(item: dict, catalogue: dict | None = None) -> int:
     explicit = item.get("wash_after_wears")
     if explicit is not None:
         return int(explicit)
-    return DEFAULT_WASH_AFTER_WEARS.get(item.get("category", ""), 3)
+    catalogue = catalogue if catalogue is not None else categories.by_key()
+    known = catalogue.get(item.get("category", ""))
+    return int(known["wash_after_wears"]) if known else 3
 
 
-def item_out(row: dict) -> dict:
+def item_out(row: dict, catalogue: dict | None = None) -> dict:
+    """Shape a row for the API.
+
+    `catalogue` lets a caller serialising a whole list read the category table
+    once instead of once per item.
+    """
     item = dict(row)
+    catalogue = catalogue if catalogue is not None else categories.by_key()
     category = item.get("category", "")
-    item["layer"] = CATEGORY_LAYERS.get(category, "accessory")
+    known = catalogue.get(category) or {}
+    item["layer"] = known.get("layer", "accessory")
+    item["category_label"] = known.get("label") or category.replace("_", " ").title()
+    # A category the user has since deleted leaves its items behind. Say so
+    # rather than silently filing them as accessories.
+    item["category_known"] = bool(known)
     item["palette"] = db.loads(item.pop("colour_palette", None), [])
     item["seasons"] = db.loads(item.get("seasons"), [])
     item["wind_proof"] = bool(item.get("wind_proof"))
@@ -24,8 +36,8 @@ def item_out(row: dict) -> dict:
     item["water_proof"] = bool(item.get("water_proof"))
     item["is_active"] = bool(item.get("is_active", 1))
 
-    threshold = wash_threshold(item)
-    launderable = category not in NO_WASH_CATEGORIES and threshold > 0
+    threshold = wash_threshold(item, catalogue)
+    launderable = threshold > 0
     item["launderable"] = launderable
     item["wash_threshold"] = threshold
     item["wears_left"] = max(0, threshold - int(item.get("wears_since_wash") or 0)) if launderable else None
@@ -69,5 +81,6 @@ def load_items(ids: list[int]) -> list[dict]:
         return []
     marks = ",".join("?" * len(ids))
     rows = db.query(f"SELECT * FROM items WHERE id IN ({marks})", tuple(ids))
-    by_id = {r["id"]: item_out(r) for r in rows}
+    catalogue = categories.by_key()
+    by_id = {r["id"]: item_out(r, catalogue) for r in rows}
     return [by_id[i] for i in ids if i in by_id]

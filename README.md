@@ -13,9 +13,32 @@ what needs washing.
 **Photo wardrobe.** Upload or photograph an item and it is catalogued. Colours are read
 from the photo automatically — plain image processing, not AI, so it works with no API key
 and no model. Pixels are weighted towards the middle of the frame, since a garment is
-nearly always centred and the edges are hanger, floor and wall, and the backdrop is read
-from a ring around the whole border. The swatches are only a **starting point**: they fill
-the primary and secondary colour fields, and those fields are what outfit matching uses.
+nearly always centred and the edges are hanger, floor and wall; the backdrop is read from a
+ring around the whole border; and each colour cluster knows how much of itself is pressed
+against that border, which is what separates a garment from its own shadow. The swatches
+are only a **starting point**: they fill the primary and secondary colour fields, and those
+fields are what outfit matching uses.
+
+**Colours, named the way you would name them.** Naming happens in CIE Lab, and the
+lightness bands are set from photographed garments rather than from a colour chart. Black
+fabric photographs at L\* 10-20, not 0, so nearest-neighbour against a textbook palette
+called every black t-shirt "charcoal"; white fabric lands at L\* 84-88, not 100, so every
+white shirt came back "silver". Hue only gets a vote once there is enough chroma to trust
+it — camera white balance alone moves a neutral grey further than a washed-out army green
+sits from grey.
+
+Where the pixels genuinely cannot decide, the app does not guess harder. A white tee and a
+pale grey marl photograph two Lab units apart, and a desaturated olive measures as a grey,
+so each swatch carries its **runners-up**, offered after "or" in the form and one tap away.
+
+Colour fields stay free text, but everything typed into them resolves through one table:
+"Gray", "Dark Red", "off-white", "army green", "#1b1b1d" and "N/A" all land where they
+should. That table is what the laundry piles, the outfit matcher, the colour filter and the
+analytics chart read, so a spelling can no longer fall silently through all four. A word
+the app does not know is kept exactly as typed and flagged in the form, never overwritten.
+
+**Settings → Colours** re-reads every photo with the current engine — filling in only what
+is blank or unrecognised, or overwriting the lot, whichever you ask for.
 
 **Rotate and crop, before or after uploading.** Every photo gets an optional editor:
 rotate in 90° steps, drag a crop box, or lock it to 3:4, 1:1 or 4:3. It runs in the
@@ -28,10 +51,25 @@ detected colours offered as one-tap choices. *Let AI tag them* fills in category
 material, pattern, warmth and formality for you to confirm, and needs a Gemini key. Every
 field stays editable afterwards either way.
 
+**Categories are yours.** The built-in set is a starting point, not a fixture. Add your own
+in Settings → Categories, rename them, or remove the ones you do not wear. The wardrobe
+filter shows only categories you actually own something in, with a count, so a rail of
+nineteen chips is however many you really use.
+
+Adding one asks two questions: what it is called, and which **layer** it occupies — base,
+bottom, top, mid, outer, footwear, accessory or jewellery. The layer is the part that
+matters, because it decides which slot the garment fills and the outfit builder only puts
+one thing in each. Warmth, formality and wears-before-washing are taken from the layer
+unless you set them; all three stay editable per garment either way.
+
+Removing a category that still holds garments asks where they should go first. Deleting it
+outright would leave them naming something nothing recognises — no layer, so no outfits,
+and no wash threshold — so either the items move, or the delete is refused.
+
 An item can sit in **more than one category** — joggers filed as both Bottom and Pyjamas
-turn up under either filter. The main category still decides the layer, the wash default
-and how the outfit builder uses it, since a garment can only fill one slot in an outfit at
-a time; the extras are for finding things.
+turn up under either filter, and count towards both. The main category still decides the
+layer, the wash default and how the outfit builder uses it, since a garment can only fill
+one slot in an outfit at a time; the extras are for finding things.
 
 Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
 loose, oversized and so on, chosen per category. Bottoms carry a **belt** toggle: turn it
@@ -93,7 +131,8 @@ how you rated it. Any entry can be deleted, which puts the wear counters back �
 progress towards the next wash.
 
 **Analytics.** Most and least worn, things untouched for 90 days, colour distribution,
-repeated pairings, laundry history, and gaps limiting your suggestions.
+repeated pairings, laundry history, and gaps limiting your suggestions. The wardrobe can
+also be filtered by colour, offering only the colours you actually own.
 
 **AI is entirely optional.** Choose "No AI" and everything above still works except
 automatic tagging and care-label reading.
@@ -207,6 +246,14 @@ cd frontend && npm run build && sudo systemctl restart outfits
 ```
 
 API documentation is at `/docs`.
+
+The colour engine has its own checks, measured off real wardrobe photos rather than
+invented. They run under pytest, and on their own where pytest is not installed:
+
+```bash
+PYTHONPATH=backend .venv/bin/python backend/tests/test_colours.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_categories.py
+```
 
 ---
 

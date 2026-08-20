@@ -56,7 +56,7 @@ export default function ItemCard({ item, selected, onSelect, compact = false }) 
         <p className="truncate text-sm font-semibold">{item.name}</p>
         <div className="mt-1 flex items-center justify-between gap-2">
           <span className="truncate text-xs" style={{ color: 'var(--muted)' }}>
-            {titleCase(item.category)}
+            {item.category_label || titleCase(item.category)}
             {item.brand ? ` · ${item.brand}` : ''}
           </span>
           <Palette palette={item.palette} size={11} max={3} />
@@ -105,7 +105,7 @@ export function ItemRow({ item, right, onClick }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold">{item.name}</p>
         <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
-          {titleCase(item.category)}{item.colour_primary ? ` · ${item.colour_primary}` : ''}
+          {item.category_label || titleCase(item.category)}{item.colour_primary ? ` · ${item.colour_primary}` : ''}
         </p>
       </div>
       {right}

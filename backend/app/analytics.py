@@ -3,7 +3,7 @@
 from collections import Counter
 from datetime import date, timedelta
 
-from . import db
+from . import colours, db
 from .serializers import item_out
 
 
@@ -66,12 +66,28 @@ def neglected(days: int = 90, limit: int = 20) -> list[dict]:
 
 
 def colour_distribution() -> list[dict]:
+    """What the wardrobe is actually made of, by colour.
+
+    Grouped in Python rather than by SQL: the column holds whatever was typed,
+    so "Gray", "grey" and "N/A" used to be three separate bars. Canonicalising
+    first makes the chart count garments instead of counting spellings, and
+    carries the swatch so the bars can be shown in the colour they describe.
+    """
     rows = db.query(
         "SELECT colour_primary AS colour, COUNT(*) AS count, SUM(total_wears) AS wears "
         "FROM items WHERE is_active = 1 AND colour_primary IS NOT NULL "
-        "AND colour_primary != '' GROUP BY colour_primary ORDER BY count DESC"
+        "AND TRIM(colour_primary) != '' GROUP BY colour_primary"
     )
-    return [{"colour": r["colour"], "count": r["count"], "wears": r["wears"] or 0} for r in rows]
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        reading = colours.describe(row["colour"])
+        slot = grouped.setdefault(reading["name"], {
+            "colour": reading["name"], "count": 0, "wears": 0,
+            "hex": reading["hex"], "known": reading["known"],
+        })
+        slot["count"] += row["count"]
+        slot["wears"] += row["wears"] or 0
+    return sorted(grouped.values(), key=lambda c: (-c["count"], c["colour"]))
 
 
 def top_combinations(limit: int = 10) -> list[dict]:
@@ -157,7 +173,8 @@ def comfort_calibration() -> dict:
 
 def gaps() -> list[dict]:
     """Categories that are thin enough to limit what can be suggested."""
-    from .constants import CATEGORY_LAYERS
+    from . import categories
+    catalogue = categories.by_key()
     counts = {r["category"]: r["count"] for r in db.query(
         "SELECT category, COUNT(*) AS count FROM items WHERE is_active = 1 GROUP BY category"
     )}
@@ -171,7 +188,7 @@ def gaps() -> list[dict]:
             have += counts.get("knitwear", 0)
         if have < want:
             out.append({"category": category, "have": have, "suggested": want,
-                        "layer": CATEGORY_LAYERS.get(category)})
+                        "layer": (catalogue.get(category) or {}).get("layer")})
     return out
 
 

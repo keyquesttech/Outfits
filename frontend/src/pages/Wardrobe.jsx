@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api.js'
 import { useMeta } from '../App.jsx'
@@ -6,6 +6,7 @@ import { useAsync, useDebounced, useLocalState } from '../hooks.js'
 import { ItemGrid, ItemPhoto } from '../components/ItemCard.jsx'
 import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
 import ImageEditor from '../components/ImageEditor.jsx'
+import { Swatch } from '../components/ColourField.jsx'
 import CareForm, { careFormPayload, careFormState, careIsSet } from '../components/CareForm.jsx'
 import {
   Chip, EmptyState, ErrorNote, Field, Icon, Modal, Spinner, titleCase, useToast,
@@ -226,7 +227,7 @@ function UploadSheet({ open, onClose, onDone }) {
         <Field label="Category" hint="You can change this per item while tagging.">
           <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
             {(meta.categories || []).map((c) => (
-              <option key={c} value={c}>{titleCase(c)}</option>
+              <option key={c} value={c}>{meta.category_labels?.[c] || titleCase(c)}</option>
             ))}
           </select>
         </Field>
@@ -326,19 +327,53 @@ export default function Wardrobe() {
   const q = useDebounced(search, 280)
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
+  const [colour, setColour] = useState('')
   const [sort, setSort] = useLocalState('outfits.sort', 'recent')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [tagging, setTagging] = useState(null)
+  // Bumped whenever items change, so the category counts follow them.
+  const [version, setVersion] = useState(0)
 
   const load = useCallback(
-    () => api.items({ q, category, status, sort }),
-    [q, category, status, sort]
+    () => api.items({ q, category, status, colour, sort }),
+    [q, category, status, colour, sort]
   )
-  const { data, loading, error, reload } = useAsync(load, [q, category, status, sort])
+  const { data, loading, error, reload } = useAsync(load, [q, category, status, colour, sort])
   const items = data?.items || []
+  const filtering = Boolean(q || category || status || colour)
+
+  // Only the categories you actually own something in. Nineteen chips, most of
+  // them matching nothing, is a worse filter than the five you wear — and the
+  // counts have to come from their own call, because `items` is already
+  // filtered and would collapse the rail to whatever is selected.
+  const catalogue = useAsync(() => api.categories(), [version])
+  const inUse = (catalogue.data?.categories || []).filter(
+    (c) => c.count > 0 || c.key === category)
+
+  // Only offer the colours actually owned. A rail of thirty-six swatches, most
+  // of which match nothing, is a worse filter than a rail of the eight you wear.
+  //
+  // Held in a ref and refreshed only while no colour is chosen: picking one
+  // narrows the results to that colour, and rebuilding the rail from those
+  // would leave a single chip and no way back to the others.
+  const railRef = useRef([])
+  const owned = useMemo(() => {
+    if (colour) return railRef.current
+    const counts = new Map()
+    for (const item of items) {
+      const name = String(item.colour_primary || '').toLowerCase()
+      if (name) counts.set(name, (counts.get(name) || 0) + 1)
+    }
+    const swatches = meta.colours || []
+    railRef.current = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name]) => ({ name, hex: swatches.find((c) => c.name === name)?.hex || null }))
+    return railRef.current
+  }, [items, colour, meta.colours])
 
   const afterUpload = (created, mode) => {
     reload(true)
+    setVersion((v) => v + 1)
     if (mode === 'manual') {
       setUploadOpen(false)
       setTagging(created)
@@ -370,11 +405,18 @@ export default function Wardrobe() {
       <div className="space-y-2">
         <div className="rail">
           <Chip active={!category} onClick={() => setCategory('')}>All</Chip>
-          {(meta.categories || []).map((c) => (
-            <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? '' : c)}>
-              {titleCase(c)}
+          {inUse.map((c) => (
+            <Chip key={c.key} active={category === c.key}
+                  onClick={() => setCategory(category === c.key ? '' : c.key)}>
+              {c.label}
+              <span className="tabular-nums" style={{ opacity: 0.6 }}>{c.count}</span>
             </Chip>
           ))}
+          {catalogue.data && inUse.length === 0 && (
+            <span className="text-xs" style={{ color: 'var(--muted)' }}>
+              No categories in use yet.
+            </span>
+          )}
         </div>
         <div className="rail">
           <Chip active={!status} onClick={() => setStatus('')}>Any status</Chip>
@@ -388,6 +430,17 @@ export default function Wardrobe() {
             <Chip key={value} active={sort === value} onClick={() => setSort(value)}>{label}</Chip>
           ))}
         </div>
+        {owned.length > 1 && (
+          <div className="rail">
+            <Chip active={!colour} onClick={() => setColour('')}>Any colour</Chip>
+            {owned.map((c) => (
+              <Chip key={c.name} active={colour === c.name}
+                    onClick={() => setColour(colour === c.name ? '' : c.name)}>
+                <Swatch hex={c.hex} size={11} /> {titleCase(c.name)}
+              </Chip>
+            ))}
+          </div>
+        )}
       </div>
 
       <ErrorNote error={error} onRetry={reload} />
@@ -409,8 +462,8 @@ export default function Wardrobe() {
             empty={
               <EmptyState
                 icon="hanger"
-                title={q || category || status ? 'Nothing matches' : 'Your wardrobe is empty'}
-                hint={q || category || status
+                title={filtering ? 'Nothing matches' : 'Your wardrobe is empty'}
+                hint={filtering
                   ? 'Try clearing the filters.'
                   : 'Photograph a few things you actually wear. Everything else builds on top of that.'}
                 action={
@@ -431,7 +484,7 @@ export default function Wardrobe() {
         <TagSheet
           open items={tagging}
           onClose={() => setTagging(null)}
-          onDone={() => reload(true)}
+          onDone={() => { reload(true); setVersion((v) => v + 1) }}
         />
       )}
     </div>

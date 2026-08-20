@@ -206,23 +206,42 @@ export default function ItemDetail() {
               <Icon name="sparkle" size={15} />
             </button>
           </div>
-          {item.palette?.length > 0 && (
-            <div className="card px-3.5 py-3">
+          <div className="card px-3.5 py-3">
+            <div className="flex items-center justify-between gap-2">
               <p className="label">Colours read from the photo</p>
+              <button
+                className="btn btn-ghost !px-1.5 !py-0.5 text-xs" disabled={busy}
+                title="Read the colours off this photo again"
+                onClick={() => act(() => api.rescanItemColours(item.id),
+                                   'Colours re-read from the photo.')}
+              >
+                <Icon name="refresh" size={13} /> Re-read
+              </button>
+            </div>
+            {item.palette?.length > 0 ? (
               <div className="mt-2 space-y-1.5">
                 {item.palette.map((c, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
-                    <span className="h-4 w-4 rounded-full ring-1" style={{ background: c.hex, '--tw-ring-color': 'var(--border)' }} />
+                    <span className="h-4 w-4 shrink-0 rounded-full ring-1"
+                          style={{ background: c.hex, '--tw-ring-color': 'var(--border)' }} />
                     <span className="font-medium">{c.name}</span>
-                    <span className="tabular-nums" style={{ color: 'var(--muted)' }}>{c.hex}</span>
-                    <span className="ml-auto tabular-nums" style={{ color: 'var(--muted)' }}>
+                    {/* The runner-up readings, so an ambiguous one is visible
+                        here as well as in the form. */}
+                    {c.alternatives?.length > 0 && (
+                      <span style={{ color: 'var(--muted)' }}>or {c.alternatives.join(', ')}</span>
+                    )}
+                    <span className="ml-auto shrink-0 tabular-nums" style={{ color: 'var(--muted)' }}>
                       {Math.round(c.share * 100)}%
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="mt-1 text-xs" style={{ color: 'var(--muted)' }}>
+                Nothing read yet. "Re-read" takes the colours off the photo again.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -247,7 +266,7 @@ export default function ItemDetail() {
               )}
             </div>
             <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-              {titleCase(item.category)}
+              {item.category_label || titleCase(item.category)}
               {item.subcategory ? ` · ${item.subcategory}` : ''}
               {item.brand ? ` · ${item.brand}` : ''}
               {item.material ? ` · ${item.material}` : ''}

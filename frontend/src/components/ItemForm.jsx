@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
+import ColourField from './ColourField.jsx'
 import { Chip, Field, Icon, MultiSelect, titleCase } from './ui.jsx'
 
 /**
@@ -11,36 +12,6 @@ import { Chip, Field, Icon, MultiSelect, titleCase } from './ui.jsx'
  */
 export const autoCapitalise = (value) =>
   String(value ?? '').replace(/(^|\s)(\S)/g, (_, gap, ch) => gap + ch.toUpperCase())
-
-/**
- * Swatches read from the photo, offered as a shortcut for one colour field.
- *
- * They are only ever a suggestion — the primary and secondary colour fields are
- * what the app matches on, so the swatches fill those rather than standing on
- * their own.
- */
-function PaletteRow({ palette, value, onPick }) {
-  if (!palette?.length) return null
-  return (
-    <div className="rail mt-1.5">
-      {palette.map((c, i) => {
-        const on = (value || '').toLowerCase() === c.name.toLowerCase()
-        return (
-          <button
-            key={i} type="button" onClick={() => onPick(autoCapitalise(c.name))}
-            className="chip"
-            style={on ? { borderColor: 'var(--accent)', color: 'var(--accent)' } : undefined}
-            title={`${c.name} — ${Math.round(c.share * 100)}% of the photo`}
-          >
-            <span className="h-3 w-3 rounded-full ring-1"
-                  style={{ background: c.hex, '--tw-ring-color': 'var(--border)' }} />
-            {c.name}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 /** Text input that capitalises words and offers what has been typed before. */
 function TextField({ label, hint, value, onChange, options = [], capitalise = true, ...rest }) {
@@ -241,8 +212,13 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         <Field label="Category">
           <select className="select" value={form.category} onChange={set('category')}>
             {(meta.categories || []).map((c) => (
-              <option key={c} value={c}>{titleCase(c)}</option>
+              <option key={c} value={c}>{meta.category_labels?.[c] || titleCase(c)}</option>
             ))}
+            {/* An item can outlive the category it was filed under. Keep it
+                selectable rather than silently snapping it to the first entry. */}
+            {form.category && !(meta.categories || []).includes(form.category) && (
+              <option value={form.category}>{titleCase(form.category)} (removed)</option>
+            )}
           </select>
         </Field>
         <MultiSelect
@@ -250,7 +226,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
           hint="Optional. The main category above still decides the layer and how outfits are built — this just files it in more than one place."
           options={(meta.categories || [])
             .filter((c) => c !== form.category)
-            .map((c) => ({ value: c, label: titleCase(c) }))}
+            .map((c) => ({ value: c, label: meta.category_labels?.[c] || titleCase(c) }))}
           selected={form.categories || []}
           onChange={(categories) => setForm({ ...form, categories })}
           empty="Nothing else"
@@ -271,29 +247,25 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <TextField
-            label="Primary colour" value={form.colour_primary} options={known.colour_primary}
-            onChange={(v) => setForm({ ...form, colour_primary: v })}
-          />
-          <PaletteRow palette={palette} value={form.colour_primary}
-                      onPick={(v) => setForm({ ...form, colour_primary: v })} />
-        </div>
-        <div>
-          <TextField
-            label="Secondary colour" value={form.colour_secondary}
-            options={known.colour_secondary}
-            onChange={(v) => setForm({ ...form, colour_secondary: v })}
-          />
-          <PaletteRow palette={palette} value={form.colour_secondary}
-                      onPick={(v) => setForm({ ...form, colour_secondary: v })} />
-        </div>
+        <ColourField
+          label="Primary colour" meta={meta} palette={palette}
+          value={form.colour_primary} options={known.colour_primary}
+          onChange={(v) => setForm({ ...form, colour_primary: v })}
+        />
+        <ColourField
+          label="Secondary colour"
+          hint="Only if a second colour is really part of the garment — a contrast panel, not a small print."
+          meta={meta} palette={palette}
+          value={form.colour_secondary} options={known.colour_secondary}
+          onChange={(v) => setForm({ ...form, colour_secondary: v })}
+        />
       </div>
 
       {palette?.length > 0 && (
         <p className="-mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-          The swatches are read from the photo as a starting point. What you leave in the two
-          fields above is what outfit matching actually uses.
+          The swatches are read from the photo as a starting point, with the next-closest
+          reading offered after "or". What you leave in the two fields above is what outfit
+          matching and the laundry piles actually use.
         </p>
       )}
 
@@ -391,7 +363,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
 
       {!compact && (
         <Field label="Wash after (wears)"
-               hint={`Default for ${titleCase(form.category)}: ${suggestedWash ?? '—'}`}>
+               hint={`Default for ${meta.category_labels?.[form.category] || titleCase(form.category)}: ${suggestedWash ?? '—'}`}>
           <input className="input" type="number" min="0" value={form.wash_after_wears}
                  onChange={set('wash_after_wears')} placeholder="use default" />
         </Field>

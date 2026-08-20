@@ -4,15 +4,6 @@ import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import { EmptyState, ErrorNote, Icon, Section, Stat, titleCase } from '../components/ui.jsx'
 
-const SWATCH = {
-  black: '#1c1c1c', charcoal: '#36363a', grey: '#808080', silver: '#c0c0c0',
-  white: '#f4f4f2', cream: '#f5eedc', beige: '#dec8a5', tan: '#c49a6c',
-  brown: '#6e4a2e', burgundy: '#6e1e32', red: '#c82828', orange: '#e67e22',
-  mustard: '#d6ae2c', yellow: '#f0dc3c', olive: '#6e743c', green: '#3c9650',
-  teal: '#288282', navy: '#1a284e', blue: '#3464be', denim: '#5a78a0',
-  'light blue': '#96bee1', purple: '#7846a0', pink: '#e696b4', khaki: '#a0966e',
-}
-
 function BarList({ rows, valueKey = 'count', labelKey = 'label', colourOf, format }) {
   const max = Math.max(...rows.map((r) => r[valueKey] || 0), 1)
   return (
@@ -143,12 +134,22 @@ export default function Insights() {
           <div className="card px-4 py-4">
             {data.colours.length ? (
               <BarList
+                // The swatch comes with the row now. Insights used to keep its
+                // own copy of the colour table, which quietly fell behind the
+                // one the rest of the app names colours with.
                 rows={data.colours.map((c) => ({ ...c, label: c.colour }))}
-                colourOf={(r) => SWATCH[String(r.colour).toLowerCase()] || 'var(--accent)'}
+                colourOf={(r) => r.hex || 'var(--surface-2)'}
                 format={(r) => `${r.count}`}
               />
             ) : (
               <p className="text-sm" style={{ color: 'var(--muted)' }}>No colours recorded yet.</p>
+            )}
+            {data.colours.some((c) => !c.known) && (
+              <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>
+                Some colours are written in words the app does not recognise, so they are
+                not sorted into a laundry pile or matched in an outfit. Open the item and
+                pick a colour from the list to fix it.
+              </p>
             )}
           </div>
         </Section>

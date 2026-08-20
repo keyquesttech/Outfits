@@ -1,14 +1,14 @@
+import re
+
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from .. import config, db, images, jobs, wash
+from .. import categories, colours, config, db, images, jobs, wash
 from ..constants import (
-    BELT_CATEGORIES, BLEACH, CATEGORIES, CATEGORY_LAYERS, COLOUR_GROUPS,
-    DAMAGE_KEYS, DAMAGE_LEVELS, DEFAULT_FORMALITY, DEFAULT_WARMTH,
-    DEFAULT_WASH_AFTER_WEARS, DRY_CLEAN, FIT_OPTIONS, FORMALITY_LEVELS, IRON_TEMP,
-    LAYER_ORDER, NO_WASH_CATEGORIES, PATTERNS, SEASONS, STATUSES, SUGGESTABLE_FIELDS,
-    SUGGESTED_TAGS, TUMBLE_DRY, WARMTH_LEVELS, WASH_CYCLES,
+    BLEACH, COLOUR_GROUPS, DAMAGE_KEYS, DAMAGE_LEVELS, DRY_CLEAN,
+    FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER, PATTERNS, SEASONS, STATUSES,
+    SUGGESTABLE_FIELDS, SUGGESTED_TAGS, TUMBLE_DRY, WARMTH_LEVELS, WASH_CYCLES,
 )
-from ..models import CareIn, ItemIn, ItemPatch, StatusIn
+from ..models import CareIn, CategoryIn, CategoryPatch, ItemIn, ItemPatch, StatusIn
 from ..serializers import care_out, item_out
 
 router = APIRouter(prefix="/api", tags=["items"])
@@ -24,10 +24,22 @@ ITEM_COLUMNS = {
 
 @router.get("/meta")
 def meta():
+    """Everything the UI needs to render a form, in one call.
+
+    The category-shaped fields are derived from the table rather than listed
+    separately, so adding a category cannot half-appear: it arrives with its
+    layer, its defaults and its fit words at the same moment.
+    """
+    catalogue = categories.all_categories()
+    in_use = categories.counts()
     return {
-        "categories": CATEGORIES,
-        "category_layers": CATEGORY_LAYERS,
+        "categories": [c["key"] for c in catalogue],
+        "category_list": [{**c, "count": in_use.get(c["key"], 0)} for c in catalogue],
+        "category_layers": {c["key"]: c["layer"] for c in catalogue},
+        "category_labels": {c["key"]: c["label"] for c in catalogue},
+        "category_counts": in_use,
         "layers": LAYER_ORDER,
+        "layer_options": categories.layers(),
         "statuses": STATUSES,
         "seasons": SEASONS,
         "wash_cycles": WASH_CYCLES,
@@ -36,18 +48,97 @@ def meta():
         "bleach": BLEACH,
         "dry_clean": DRY_CLEAN,
         "colour_groups": COLOUR_GROUPS,
-        "no_wash_categories": sorted(NO_WASH_CATEGORIES),
-        "default_wash_after_wears": DEFAULT_WASH_AFTER_WEARS,
-        "default_warmth": DEFAULT_WARMTH,
-        "default_formality": DEFAULT_FORMALITY,
+        "colours": colours.palette_options(),
+        "colour_lookup": colours.lookup_table(),
+        "colour_blanks": sorted(colours.BLANKS),
+        "no_wash_categories": sorted(c["key"] for c in catalogue if not c["launderable"]),
+        "default_wash_after_wears": {c["key"]: c["wash_after_wears"] for c in catalogue},
+        "default_warmth": {c["key"]: c["warmth"] for c in catalogue},
+        "default_formality": {c["key"]: c["formality"] for c in catalogue},
         "patterns": PATTERNS,
         "damage_levels": DAMAGE_LEVELS,
-        "belt_categories": sorted(BELT_CATEGORIES),
-        "fit_options": FIT_OPTIONS,
+        "belt_categories": sorted(c["key"] for c in catalogue if c["takes_belt"]),
+        "fit_options": {c["key"]: c["fit_options"] for c in catalogue if c["fit_options"]},
         "suggested_tags": SUGGESTED_TAGS,
         "warmth_levels": WARMTH_LEVELS,
         "formality_levels": FORMALITY_LEVELS,
     }
+
+
+# Tokens that only ever came from a camera or an export, never from a person.
+_FILENAME_NOISE = {
+    "img", "dsc", "dscn", "dscf", "pxl", "mvimg", "photo", "photos", "image",
+    "images", "picture", "pic", "screenshot", "screen", "shot", "capture",
+    "untitled", "unnamed", "download", "downloads", "copy", "final", "edit",
+    "edited", "new", "temp", "tmp", "gemini", "generated", "chatgpt",
+    "whatsapp", "signal", "received", "snapchat", "export", "render", "file",
+    "camera", "live", "resized", "compressed", "output",
+    # The browser strips the extension before uploading; a direct API call does not.
+    "jpg", "jpeg", "png", "heic", "heif", "webp", "gif", "bmp", "tif", "tiff",
+}
+
+
+# A camera prefix followed by a frame number: IMG4821, DSC00123, PXL20230101.
+_SERIAL = re.compile(r"^[a-z]{1,5}\d{3,}[a-z0-9]*$")
+
+
+def _is_noise(token: str) -> bool:
+    lowered = token.lower()
+    if lowered in _FILENAME_NOISE:
+        return True
+    # Short numbers are part of the name — Levi's 501, 20-eye boots — but a
+    # four-digit run is a date or a frame number.
+    if lowered.isdigit():
+        return len(lowered) >= 4
+    if _SERIAL.match(lowered):
+        return True
+    if len(lowered) >= 8 and all(c in "0123456789abcdef" for c in lowered):
+        return True
+    # "x9abi9x9abi9x9ab" and "20240817-142233" — long, and mixing letters with
+    # digits the way a serial number does and a garment name does not.
+    return len(lowered) >= 10 and any(c.isdigit() for c in lowered)
+
+
+def item_display_name(raw: str | None, category: str, colour: str | None) -> str:
+    """A name worth showing, from whatever the phone called the file.
+
+    Uploads are named after the file, which is how "Gemini_Generated_Image_
+    x9abi9x9abi9x9ab" and "IMG_4821" ended up as garments in the wardrobe. When
+    nothing human survives, the colour and the category make a better first
+    label than "Untitled item" — and it is still editable.
+    """
+    words = [w for w in re.split(r"[\s_\-.]+", str(raw or "").strip()) if w]
+    kept = [w for w in words if not _is_noise(w)]
+    # "Screenshot 2024-01-02 at 10.11.12" leaves "at" behind. One stray joining
+    # word is not a name, so require something with substance in it.
+    if any(len(w) >= 3 and any(c.isalpha() for c in w) for w in kept):
+        return " ".join(kept)[:120]
+    name = colours.canonical(colour)
+    if name:
+        return f"{name.title()} {category.replace('_', ' ').title()}"
+    return "Untitled item"
+
+
+def _tidy_colours(fields: dict, current: dict | None = None) -> None:
+    """Store colours in the app's own vocabulary, in place.
+
+    Everything downstream — laundry piles, outfit harmony, the colour filter,
+    the analytics chart — looks colours up by name, and every one of those
+    lookups missed for "Gray", "Dark Red" and "N/A". Normalising once on the way
+    in means they cannot miss. A word the vocabulary does not know is kept as
+    typed rather than thrown away; the form marks it so it can be corrected.
+
+    `current` is the row being patched, so a partial update can still tell that
+    the primary it is setting now matches the secondary already stored.
+    """
+    current = current or {}
+    for field in ("colour_primary", "colour_secondary"):
+        if field in fields:
+            fields[field] = colours.normalise(fields[field])
+    primary = fields.get("colour_primary", current.get("colour_primary"))
+    secondary = fields.get("colour_secondary", current.get("colour_secondary"))
+    if primary and secondary and colours.same_shade(primary, secondary):
+        fields["colour_secondary"] = None
 
 
 def _set_tags(item_id: int, tags: list[str] | None) -> None:
@@ -71,7 +162,8 @@ def _set_categories(item_id: int, primary: str, extras: list[str] | None) -> Non
     if extras is None:
         return
     db.execute("DELETE FROM item_categories WHERE item_id = ?", (item_id,))
-    wanted = {c for c in extras if c in CATEGORIES and c != primary}
+    known = set(categories.keys())
+    wanted = {c for c in extras if c in known and c != primary}
     db.executemany(
         "INSERT OR IGNORE INTO item_categories(item_id, category) VALUES (?,?)",
         [(item_id, c) for c in sorted(wanted)],
@@ -140,8 +232,12 @@ def list_items(
         where.append("items.status = ?")
         params.append(status)
     if colour:
-        where.append("LOWER(items.colour_primary) = ?")
-        params.append(colour.lower())
+        # Filter on the canonical name so "Gray" and "grey" are one filter, and
+        # match the secondary too — a black shirt with a white print is white
+        # enough to want when you are looking for white.
+        wanted = colours.canonical(colour) or colour.lower()
+        where.append("(LOWER(items.colour_primary) = ? OR LOWER(items.colour_secondary) = ?)")
+        params += [wanted, wanted]
     if season:
         where.append("items.seasons LIKE ?")
         params.append(f"%{season}%")
@@ -196,15 +292,17 @@ def get_item(item_id: int):
 def _default_wash(category: str, explicit: int | None) -> int | None:
     if explicit is not None:
         return explicit
-    if category in NO_WASH_CATEGORIES:
-        return 0
-    return DEFAULT_WASH_AFTER_WEARS.get(category)
+    known = categories.get(category)
+    return int(known["wash_after_wears"]) if known else None
 
 
 @router.post("/items", status_code=201)
 def create_item(payload: ItemIn):
-    if payload.category not in CATEGORIES:
+    if not categories.get(payload.category):
         raise HTTPException(400, f"Unknown category: {payload.category}")
+    tidy = {"colour_primary": payload.colour_primary,
+            "colour_secondary": payload.colour_secondary}
+    _tidy_colours(tidy)
     item_id = db.execute(
         "INSERT INTO items(name, category, subcategory, brand, material, pattern, fit, "
         "damage, takes_belt, colour_primary, colour_secondary, warmth, formality, seasons, "
@@ -214,8 +312,8 @@ def create_item(payload: ItemIn):
             payload.name, payload.category, payload.subcategory, payload.brand,
             payload.material, payload.pattern, payload.fit,
             payload.damage if payload.damage in DAMAGE_KEYS else "none",
-            int(payload.takes_belt), payload.colour_primary,
-            payload.colour_secondary, payload.warmth, payload.formality,
+            int(payload.takes_belt), tidy["colour_primary"],
+            tidy["colour_secondary"], payload.warmth, payload.formality,
             db.dumps(payload.seasons or []), int(payload.wind_proof),
             int(payload.water_proof),
             _default_wash(payload.category, payload.wash_after_wears),
@@ -238,14 +336,23 @@ async def upload_item(
     data = await file.read()
     if len(data) > config.UPLOAD_MAX_BYTES:
         raise HTTPException(413, "Photo is larger than 25 MB")
+    # The default here is a string, not a live lookup, so it can name a category
+    # that has since been removed. Fall back to whatever exists rather than
+    # writing an item nothing can file.
+    if not categories.get(category):
+        available = categories.keys()
+        if not available:
+            raise HTTPException(400, "There are no categories to file this under")
+        category = available[0]
     try:
         saved = images.save_upload(data, file.filename or "")
     except Exception as exc:
         raise HTTPException(400, f"Could not read that image: {exc}") from exc
 
     palette = saved["palette"]
-    primary = palette[0]["name"] if palette else None
-    secondary = palette[1]["name"] if len(palette) > 1 else None
+    primary, secondary = images.suggest_colours(palette)
+    name = item_display_name(name, category, primary)
+    defaults = categories.get(category) or {}
 
     item_id = db.execute(
         "INSERT INTO items(name, category, colour_primary, colour_secondary, "
@@ -253,7 +360,7 @@ async def upload_item(
         "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         (
             name, category, primary, secondary, db.dumps(palette),
-            DEFAULT_WARMTH.get(category, 5), DEFAULT_FORMALITY.get(category, 3),
+            defaults.get("warmth", 5), defaults.get("formality", 3),
             saved["image_path"], saved["thumb_path"],
             _default_wash(category, None), db.dumps([]),
         ),
@@ -277,7 +384,20 @@ async def replace_photo(item_id: int, file: UploadFile = File(...), analyse: boo
     if not db.query_one("SELECT id FROM items WHERE id = ?", (item_id,)):
         raise HTTPException(404, "Item not found")
     data = await file.read()
-    saved = images.save_upload(data, file.filename or "")
+    if len(data) > config.UPLOAD_MAX_BYTES:
+        raise HTTPException(413, "Photo is larger than 25 MB")
+    # The default here is a string, not a live lookup, so it can name a category
+    # that has since been removed. Fall back to whatever exists rather than
+    # writing an item nothing can file.
+    if not categories.get(category):
+        available = categories.keys()
+        if not available:
+            raise HTTPException(400, "There are no categories to file this under")
+        category = available[0]
+    try:
+        saved = images.save_upload(data, file.filename or "")
+    except Exception as exc:
+        raise HTTPException(400, f"Could not read that image: {exc}") from exc
     db.execute(
         "UPDATE items SET image_path = ?, thumb_path = ?, colour_palette = ?, "
         "cutout_path = NULL, updated_at = datetime('now') WHERE id = ?",
@@ -295,6 +415,7 @@ def update_item(item_id: int, payload: ItemPatch):
         raise HTTPException(404, "Item not found")
 
     fields = payload.model_dump(exclude_unset=True)
+    _tidy_colours(fields, row)
     tags = fields.pop("tags", None)
     extra_categories = fields.pop("categories", None)
     updates: dict = {}
@@ -308,7 +429,7 @@ def update_item(item_id: int, payload: ItemPatch):
         else:
             updates[key] = value
 
-    if "category" in updates and updates["category"] not in CATEGORIES:
+    if "category" in updates and not categories.get(updates["category"]):
         raise HTTPException(400, f"Unknown category: {updates['category']}")
     if "status" in updates and updates["status"] not in STATUSES:
         raise HTTPException(400, f"Unknown status: {updates['status']}")
@@ -392,6 +513,72 @@ def analyse(item_id: int, kind: str = Query("analyse_item", pattern="^(analyse_i
     return {"job_id": jobs.enqueue(kind, item_id), "status": "queued"}
 
 
+def _rescan(row: dict, overwrite: bool) -> dict | None:
+    """Read the palette off an item's photo again and, carefully, its colours."""
+    blob = images.photo_bytes(row.get("image_path") or "")
+    if not blob:
+        return None
+    try:
+        picture = images.open_photo(blob)
+    except Exception:
+        return None
+
+    palette = images.extract_palette(picture)
+    primary, secondary = images.suggest_colours(palette)
+    updates = {"colour_palette": db.dumps(palette)}
+
+    # Without `overwrite` this only fills what is not already a colour the app
+    # recognises, so a name chosen by hand is never quietly replaced by a guess.
+    if overwrite or not colours.canonical(row.get("colour_primary")):
+        updates["colour_primary"] = primary
+    if overwrite or not colours.canonical(row.get("colour_secondary")):
+        updates["colour_secondary"] = secondary
+    if colours.same_shade(updates.get("colour_primary", row.get("colour_primary")),
+                          updates.get("colour_secondary", row.get("colour_secondary"))):
+        updates["colour_secondary"] = None
+
+    sets = ", ".join(f"{k} = ?" for k in updates)
+    db.execute(f"UPDATE items SET {sets}, updated_at = datetime('now') WHERE id = ?",
+               (*updates.values(), row["id"]))
+    return {
+        "id": row["id"], "name": row.get("name"),
+        "was": row.get("colour_primary"),
+        "now": updates.get("colour_primary", row.get("colour_primary")),
+        "palette": palette,
+    }
+
+
+@router.post("/colours/rescan")
+def rescan_colours(overwrite: bool = False, limit: int = Query(400, ge=1, le=2000)):
+    """Re-read every photo with the current colour engine.
+
+    Worth having as a button rather than a migration: the palette stored against
+    an item was produced by whatever version of the extractor was running the
+    day it was uploaded, and re-reading a few hundred photos takes seconds.
+    """
+    rows = db.query("SELECT * FROM items WHERE image_path IS NOT NULL "
+                    "ORDER BY id LIMIT ?", (limit,))
+    changed, unreadable = [], 0
+    for row in rows:
+        result = _rescan(row, overwrite)
+        if result is None:
+            unreadable += 1
+        elif str(result["was"] or "").lower() != str(result["now"] or "").lower():
+            changed.append({k: result[k] for k in ("id", "name", "was", "now")})
+    return {"scanned": len(rows), "changed": changed,
+            "unreadable": unreadable, "overwrite": overwrite}
+
+
+@router.post("/items/{item_id}/rescan-colours")
+def rescan_item_colours(item_id: int, overwrite: bool = True):
+    row = db.query_one("SELECT * FROM items WHERE id = ?", (item_id,))
+    if not row:
+        raise HTTPException(404, "Item not found")
+    if not _rescan(row, overwrite):
+        raise HTTPException(400, "That item has no readable photo")
+    return _hydrate(db.query_one("SELECT * FROM items WHERE id = ?", (item_id,)))
+
+
 @router.get("/field-values")
 def field_values(limit: int = Query(40, ge=1, le=200)):
     """Distinct values already used in each free-text field, commonest first.
@@ -408,6 +595,83 @@ def field_values(limit: int = Query(40, ge=1, le=200)):
         )
         out[field] = [r["value"] for r in rows]
     return out
+
+
+@router.get("/categories")
+def list_categories():
+    """Every category, with how many garments are in it.
+
+    The count is what the wardrobe filter hides an empty category on, and what
+    the delete confirmation needs, so both read the same number.
+    """
+    in_use = categories.counts()
+    return {"categories": [{**c, "count": in_use.get(c["key"], 0)}
+                           for c in categories.all_categories()],
+            "layers": categories.layers()}
+
+
+@router.post("/categories", status_code=201)
+def create_category(payload: CategoryIn):
+    label = " ".join(str(payload.label or "").split())
+    if not label:
+        raise HTTPException(400, "A category needs a name")
+    if payload.layer not in LAYER_ORDER:
+        raise HTTPException(400, f"Unknown layer: {payload.layer}")
+    key = categories.slugify(label)
+    if not key:
+        raise HTTPException(400, "That name has no letters or numbers in it")
+    if categories.get(key):
+        raise HTTPException(409, f"There is already a category called {label}")
+    return categories.create(
+        key, label, payload.layer,
+        warmth=payload.warmth, formality=payload.formality,
+        wash_after_wears=payload.wash_after_wears,
+        one_piece=payload.one_piece, takes_belt=payload.takes_belt,
+        fit_options=payload.fit_options,
+    )
+
+
+@router.patch("/categories/{key}")
+def update_category(key: str, payload: CategoryPatch):
+    if not categories.get(key):
+        raise HTTPException(404, "Category not found")
+    fields = payload.model_dump(exclude_unset=True)
+    if fields.get("layer") and fields["layer"] not in LAYER_ORDER:
+        raise HTTPException(400, f"Unknown layer: {fields['layer']}")
+    if "label" in fields:
+        fields["label"] = " ".join(str(fields["label"] or "").split())
+        if not fields["label"]:
+            raise HTTPException(400, "A category needs a name")
+    return categories.update(key, fields)
+
+
+@router.delete("/categories/{key}")
+def delete_category(key: str, move_to: str | None = None):
+    """Remove a category. Anything in it has to go somewhere first.
+
+    Deleting one that still holds garments would leave them pointing at a name
+    nothing recognises — no layer, so no outfits, no wash threshold. Either name
+    a category to move them to, or the request comes back saying how many are in
+    the way.
+    """
+    if not categories.get(key):
+        raise HTTPException(404, "Category not found")
+    if len(categories.keys()) <= 1:
+        raise HTTPException(409, "This is the only category left. Add another "
+                                 "before removing it, or nothing can be filed anywhere.")
+    if move_to:
+        if move_to == key:
+            raise HTTPException(400, "Move the items somewhere other than here")
+        if not categories.get(move_to):
+            raise HTTPException(400, f"Unknown category: {move_to}")
+    result = categories.delete(key, move_to)
+    if not result["deleted"]:
+        raise HTTPException(409, {
+            "message": f"{result['primary']} item(s) are filed under this. "
+                       "Move them to another category first.",
+            **result,
+        })
+    return result
 
 
 @router.get("/tags")

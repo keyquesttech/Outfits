@@ -10,9 +10,8 @@ import threading
 import time
 import traceback
 
-from . import db, images
+from . import categories, colours, db, images
 from .ai import get_provider
-from .constants import DEFAULT_WASH_AFTER_WEARS, NO_WASH_CATEGORIES
 
 POLL_SECONDS = 2
 _worker: threading.Thread | None = None
@@ -44,7 +43,11 @@ def _apply_analysis(item_id: int, data: dict, provider_name: str) -> dict:
     def maybe(field, value, blank=(None, "", 0)):
         if value in (None, ""):
             return
-        if row.get(field) in blank or (field == "name" and str(row.get("name", "")).startswith("Untitled")):
+        current = row.get(field)
+        # "N/A" is not an answer someone gave, it is a field they left alone.
+        if isinstance(current, str) and current.strip().lower() in colours.BLANKS:
+            current = ""
+        if current in blank or (field == "name" and str(row.get("name", "")).startswith("Untitled")):
             updates[field] = value
 
     maybe("name", data.get("name"))
@@ -53,8 +56,14 @@ def _apply_analysis(item_id: int, data: dict, provider_name: str) -> dict:
     maybe("brand", data.get("brand"))
     maybe("material", data.get("material"))
     maybe("pattern", data.get("pattern"))
-    maybe("colour_primary", data.get("colour_primary"))
-    maybe("colour_secondary", data.get("colour_secondary"))
+    # The model is asked for plain English and mostly obliges, but "Dark Red"
+    # and "Gray" come back often enough that storing them raw would undo the
+    # normalisation the manual path does.
+    maybe("colour_primary", colours.normalise(data.get("colour_primary")))
+    secondary = colours.normalise(data.get("colour_secondary"))
+    if colours.same_shade(data.get("colour_primary"), secondary):
+        secondary = None
+    maybe("colour_secondary", secondary)
     if data.get("warmth") is not None:
         updates["warmth"] = max(0, min(10, int(data["warmth"])))
     if data.get("formality") is not None:
@@ -68,9 +77,8 @@ def _apply_analysis(item_id: int, data: dict, provider_name: str) -> dict:
 
     category = updates.get("category", row.get("category"))
     if row.get("wash_after_wears") is None and category:
-        updates["wash_after_wears"] = (
-            0 if category in NO_WASH_CATEGORIES else DEFAULT_WASH_AFTER_WEARS.get(category, 3)
-        )
+        known = categories.get(category)
+        updates["wash_after_wears"] = int(known["wash_after_wears"]) if known else 3
 
     updates["ai_provider"] = provider_name
     updates["ai_confidence"] = data.get("confidence")

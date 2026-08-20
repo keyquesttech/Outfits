@@ -49,6 +49,31 @@ class ItemPatch(BaseModel):
     tags: list[str] | None = None
 
 
+class CategoryIn(BaseModel):
+    label: str
+    layer: str
+    # Everything below has a sensible default derived from the layer, so adding
+    # a category only really asks two questions.
+    warmth: int | None = Field(default=None, ge=0, le=10)
+    formality: int | None = Field(default=None, ge=1, le=5)
+    wash_after_wears: int | None = Field(default=None, ge=0, le=200)
+    one_piece: bool | None = None
+    takes_belt: bool | None = None
+    fit_options: list[str] | None = None
+
+
+class CategoryPatch(BaseModel):
+    label: str | None = None
+    layer: str | None = None
+    warmth: int | None = Field(default=None, ge=0, le=10)
+    formality: int | None = Field(default=None, ge=1, le=5)
+    wash_after_wears: int | None = Field(default=None, ge=0, le=200)
+    one_piece: bool | None = None
+    takes_belt: bool | None = None
+    fit_options: list[str] | None = None
+    sort_order: int | None = None
+
+
 class CareIn(BaseModel):
     wash_temp: int | None = None
     wash_cycle: str | None = None

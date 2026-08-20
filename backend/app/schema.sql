@@ -123,6 +123,25 @@ CREATE TABLE IF NOT EXISTS item_categories (
 );
 CREATE INDEX IF NOT EXISTS idx_item_categories_cat ON item_categories(category);
 
+-- The categories a garment can be filed under. Seeded from the built-in set on
+-- first run, then owned by the user: they can add their own and remove the ones
+-- they do not wear. `layer` is the only field the outfit builder truly needs —
+-- it decides which slot the garment fills — so a new category must pick one.
+CREATE TABLE IF NOT EXISTS categories (
+  key              TEXT PRIMARY KEY,
+  label            TEXT NOT NULL,
+  layer            TEXT NOT NULL,
+  warmth           INTEGER NOT NULL DEFAULT 3,
+  formality        INTEGER NOT NULL DEFAULT 3,
+  wash_after_wears INTEGER NOT NULL DEFAULT 3,
+  one_piece        INTEGER NOT NULL DEFAULT 0,
+  takes_belt       INTEGER NOT NULL DEFAULT 0,
+  fit_options      TEXT,
+  is_builtin       INTEGER NOT NULL DEFAULT 0,
+  sort_order       INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS tags (
   id   INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL UNIQUE

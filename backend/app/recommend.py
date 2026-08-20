@@ -8,11 +8,10 @@ right", "too cold") accumulate in `comfort_feedback` and shift the target, so th
 app converges on how *you* experience 12 °C rather than an average body.
 """
 
-import colorsys
 import random
 
-from . import db
-from .constants import LAYER_ORDER, ONE_PIECE_CATEGORIES
+from . import categories, colours, db
+from .constants import LAYER_ORDER
 from .serializers import item_out
 
 WARMTH_LAYERS = ("bottom", "top", "mid", "outer", "footwear")
@@ -65,38 +64,48 @@ def record_comfort(apparent_c: float, outfit_warmth: float, verdict: int,
 
 
 def _rgb(item: dict) -> tuple[int, int, int] | None:
+    """The colour to match this item on.
+
+    The colour field wins over the extracted palette: the palette is a guess
+    made from pixels, and the field is what the person decided. Whatever is in
+    it — "Navy", "dark red", "#1b1b1d" — resolves through the same table the
+    rest of the app uses, so a spelling the reference list never happened to
+    contain is no longer silently dropped.
+    """
+    named = colours.rgb_for(item.get("colour_primary"))
+    if named:
+        return named
     palette = item.get("palette") or []
-    if palette and palette[0].get("rgb"):
-        return tuple(palette[0]["rgb"])
-    hex_value = (item.get("colour_primary") or "").strip()
-    if hex_value.startswith("#") and len(hex_value) == 7:
-        return tuple(int(hex_value[i:i + 2], 16) for i in (1, 3, 5))
-    from .constants import COLOUR_NAMES
-    for name, rgb in COLOUR_NAMES:
-        if name == hex_value.lower():
-            return rgb
+    rgb = palette[0].get("rgb") if palette else None
+    if rgb and len(rgb) >= 3:
+        return tuple(int(c) for c in rgb[:3])
     return None
+
+
+# Below this chroma a garment reads as a neutral: it goes with everything, and
+# nothing can clash with it.
+CLASHABLE_CHROMA = 12.0
 
 
 def _hue_family(item: dict):
     """Returns None for anything that cannot clash: neutrals and metals."""
-    from .constants import METAL_TONES
-
     # Jewellery and watches read as metal, not colour — a gold ring is not a
     # competing hue against a burgundy scarf.
     if item.get("layer") == "jewellery":
         return None
-    if (item.get("colour_primary") or "").lower() in METAL_TONES:
+    primary = item.get("colour_primary")
+    if colours.is_metal(primary):
+        return None
+    if colours.canonical(primary) in colours.NEUTRALS:
         return None
 
     rgb = _rgb(item)
     if not rgb:
         return None
-    r, g, b = (c / 255 for c in rgb)
-    h, s, v = colorsys.rgb_to_hsv(r, g, b)
-    if s < 0.20 or v < 0.16 or (v > 0.92 and s < 0.12):
+    lightness, chroma, hue = colours.to_lch(rgb)
+    if chroma < CLASHABLE_CHROMA or lightness < 12 or lightness > 93:
         return None
-    return h * 360
+    return hue
 
 
 def colour_harmony(items: list[dict]) -> tuple[float, str]:
@@ -218,9 +227,10 @@ def _pools(exclude_dirty: bool, seasons: list[str] | None) -> dict[str, list[dic
     if exclude_dirty:
         clause += " AND status NOT IN ('needs_wash','in_wash')"
     rows = db.query(clause, tuple(params))
+    catalogue = categories.by_key()
     pools: dict[str, list[dict]] = {layer: [] for layer in LAYER_ORDER}
     for row in rows:
-        item = item_out(row)
+        item = item_out(row, catalogue)
         if seasons and item["seasons"] and not set(item["seasons"]) & set(seasons):
             continue
         pools.setdefault(item["layer"], []).append(item)
@@ -247,8 +257,11 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
         pinned_items = load_items(pinned)
     pinned_layers = {i["layer"] for i in pinned_items}
 
-    one_pieces = [i for i in pools.get("top", []) if i.get("category") in ONE_PIECE_CATEGORIES]
-    tops = [i for i in pools.get("top", []) if i.get("category") not in ONE_PIECE_CATEGORIES]
+    # A dress or a pair of pyjamas covers top and bottom on its own, so it is a
+    # complete layer pair rather than something to wear with trousers.
+    one_piece = {k for k, c in categories.by_key().items() if c["one_piece"]}
+    one_pieces = [i for i in pools.get("top", []) if i.get("category") in one_piece]
+    tops = [i for i in pools.get("top", []) if i.get("category") not in one_piece]
     bottoms = pools.get("bottom", [])
     shoes = pools.get("footwear", [])
     mids = pools.get("mid", [])

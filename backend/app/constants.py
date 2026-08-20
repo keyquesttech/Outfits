@@ -143,23 +143,13 @@ DRY_CLEAN = ["any", "petroleum", "no"]
 # Laundry loads are grouped by these; mixing them is what ruins clothes.
 COLOUR_GROUPS = ["whites", "lights", "darks", "colours", "delicates"]
 
-# Reference colours for naming an extracted RGB triple in plain English.
-COLOUR_NAMES = [
-    ("black", (0, 0, 0)), ("charcoal", (54, 54, 58)), ("grey", (128, 128, 128)),
-    ("silver", (192, 192, 192)), ("white", (255, 255, 255)), ("cream", (245, 238, 220)),
-    ("beige", (222, 200, 165)), ("tan", (196, 154, 108)), ("brown", (110, 74, 46)),
-    ("burgundy", (110, 30, 50)), ("red", (200, 40, 40)), ("orange", (230, 126, 34)),
-    ("mustard", (214, 174, 44)), ("yellow", (240, 220, 60)), ("olive", (110, 116, 60)),
-    ("green", (60, 150, 80)), ("teal", (40, 130, 130)), ("navy", (26, 40, 78)),
-    ("blue", (52, 100, 190)), ("denim", (90, 120, 160)), ("light blue", (150, 190, 225)),
-    ("purple", (120, 70, 160)), ("pink", (230, 150, 180)), ("khaki", (160, 150, 110)),
-    # Metal tones — jewellery and watches are first-class items here, and gold
-    # versus silver is the thing you actually match on.
-    ("gold", (212, 175, 55)), ("rose gold", (200, 150, 130)),
-]
+# Colour vocabulary. The definitions live in `colours` so that naming a pixel,
+# canonicalising what someone typed, and sorting a laundry pile all read from
+# one table — these names are kept for the modules that already import them.
+from .colours import (  # noqa: E402  (placed here to keep the vocabulary together)
+    COLOUR_LIST, DARK_COLOURS, LIGHT_COLOURS, METAL_TONES, NEUTRALS, SWATCHES,
+)
 
-METAL_TONES = {"gold", "rose gold", "silver"}
-
-# Colour-group inference for laundry batching.
-DARK_COLOURS = {"black", "charcoal", "navy", "burgundy", "brown", "olive", "denim"}
-LIGHT_COLOURS = {"white", "cream", "beige", "silver", "light blue"}
+# (name, rgb) pairs, the shape the reference list has always had.
+COLOUR_NAMES = [(name, tuple(int(hexcode[i:i + 2], 16) for i in (1, 3, 5)))
+                for name, hexcode in SWATCHES.items()]
