@@ -92,6 +92,8 @@ class OutfitIn(BaseModel):
     occasion: str | None = None
     notes: str | None = None
     is_favourite: bool = False
+    # A base is a partial outfit — a starting point the suggester builds around.
+    is_base: bool = False
     item_ids: list[int] = []
 
 

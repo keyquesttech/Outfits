@@ -9,6 +9,18 @@ from ..serializers import load_items
 router = APIRouter(prefix="/api/wear", tags=["wear"])
 
 
+def _current_conditions() -> dict:
+    """What resolve_outfit scores against: the weather out there right now."""
+    data = weather.fetch()
+    current = data.get("current") or {}
+    today = data.get("today") or {}
+    return {
+        "apparent_c": current.get("apparent_c"),
+        "rain_chance": today.get("rain_chance"),
+        "wind_kph": current.get("wind_kph"),
+    }
+
+
 def _weather_for(worn_on: str) -> tuple:
     """(temp, apparent, condition) for the day a wear happened.
 
@@ -77,10 +89,21 @@ def list_wears(limit: int = 60, item_id: int | None = None):
 def log_wear(payload: WearIn):
     """Record what was worn. This is what drives wear counts and the wash queue."""
     item_ids = list(dict.fromkeys(payload.item_ids))
+    resolved = False
     if payload.outfit_id and not item_ids:
-        item_ids = [r["item_id"] for r in db.query(
+        saved_ids = [r["item_id"] for r in db.query(
             "SELECT item_id FROM outfit_items WHERE outfit_id = ?", (payload.outfit_id,)
         )]
+        saved = load_items(saved_ids)
+        # A saved outfit can hold alternatives — three tops, two shoes. Wearing
+        # it wears one of each, chosen for today rather than all of them at once.
+        conditions = _current_conditions() if payload.use_weather else {}
+        tag_map = recommend.tags_by_item()
+        for item in saved:
+            item["tags"] = sorted(tag_map.get(item["id"], set()))
+        chosen = recommend.resolve_outfit(saved, conditions, payload.occasion)
+        item_ids = [i["id"] for i in chosen]
+        resolved = len(item_ids) < len(saved_ids)
     if not item_ids:
         raise HTTPException(400, "Log at least one item, or an outfit that has items")
 
@@ -126,6 +149,7 @@ def log_wear(payload: WearIn):
 
     return {
         "wear": _hydrate(db.query_one("SELECT * FROM wear_log WHERE id = ?", (log_id,))),
+        "resolved": resolved,
         "updated_items": updated,
         "now_needing_wash": [i["id"] for i in updated if i["needs_wash"]],
         "personal_offset": offset,

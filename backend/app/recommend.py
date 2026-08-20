@@ -274,6 +274,75 @@ def tags_by_item() -> dict[int, set[str]]:
     return out
 
 
+# Layers where an outfit holding several items means "pick one", not "wear all".
+# Accessories and jewellery stack legitimately — a belt and a beanie are both
+# accessories worn together — so they are never treated as alternatives.
+CHOICE_LAYERS = ("top", "bottom", "mid", "outer", "footwear")
+
+# The most combinations worth scoring exhaustively. Three tops by two bottoms
+# by two shoes is 12; anything that somehow exceeds this falls back to sampling.
+MAX_RESOLVE_COMBOS = 400
+
+
+def resolve_outfit(items: list[dict], weather: dict,
+                   occasion: str | None = None) -> list[dict]:
+    """One wearable outfit from a saved one that carries alternatives.
+
+    A saved outfit may hold three tops and two pairs of shoes as options.
+    Wearing it means wearing one of each, so every combination is scored against
+    the weather and the occasion — the same scorer the suggester uses — and the
+    best one wins. Cleanliness counts too: a needs-wash option loses to a clean
+    one before scoring even starts.
+    """
+    groups: dict[str, list[dict]] = {}
+    fixed: list[dict] = []
+    for item in items:
+        layer = item.get("layer")
+        if layer in CHOICE_LAYERS:
+            groups.setdefault(layer, []).append(item)
+        else:
+            fixed.append(item)
+
+    if all(len(options) == 1 for options in groups.values()):
+        return items                       # nothing to choose between
+
+    # Prefer clean options, but never empty a slot over it.
+    for layer, options in groups.items():
+        clean = [i for i in options if not i.get("needs_wash")]
+        if clean:
+            groups[layer] = clean
+
+    import itertools
+    layers = sorted(groups)
+    pools = [groups[layer] for layer in layers]
+    combos = 1
+    for pool in pools:
+        combos *= len(pool)
+
+    if combos <= MAX_RESOLVE_COMBOS:
+        candidates = itertools.product(*pools)
+    else:  # pragma: no cover - needs a pathological outfit
+        candidates = ([random.choice(pool) for pool in pools]
+                      for _ in range(MAX_RESOLVE_COMBOS))
+
+    offset = personal_offset()
+    apparent = weather.get("apparent_c")
+    target = target_warmth(apparent) + offset if apparent is not None else None
+
+    best, best_key = None, None
+    for combo in candidates:
+        chosen = list(combo) + fixed
+        score = score_outfit(chosen, weather, occasion, offset)["score"]
+        # The warmth score floors at zero once an outfit is hopelessly far from
+        # target, which makes a tee and a knit tie on a freezing day. Break the
+        # tie towards whichever misses the target least.
+        gap = abs(outfit_warmth(chosen) - target) if target is not None else 0.0
+        key = (score, -gap)
+        if best_key is None or key > best_key:
+            best, best_key = chosen, key
+    return best or items
+
+
 def _pools(exclude_dirty: bool, seasons: list[str] | None,
            occasion: str | None = None,
            tag_map: dict[int, set[str]] | None = None) -> dict[str, list[dict]]:

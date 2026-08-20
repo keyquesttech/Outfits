@@ -61,6 +61,9 @@ CREATE TABLE IF NOT EXISTS outfits (
   name         TEXT NOT NULL,
   occasion     TEXT,
   notes        TEXT,
+  -- A base is a partial outfit used as a starting point — trainers + joggers
+  -- saved as "Gym", with the suggester filling in the rest around it.
+  is_base      INTEGER NOT NULL DEFAULT 0,
   is_favourite INTEGER NOT NULL DEFAULT 0,
   times_worn   INTEGER NOT NULL DEFAULT 0,
   last_worn    TEXT,

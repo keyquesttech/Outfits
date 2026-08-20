@@ -11,15 +11,24 @@ import {
 
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
 
-function Builder({ open, onClose, onSaved, existing }) {
+function Builder({ open, onClose, onSaved, existing, bases = [] }) {
   const meta = useMeta()
   const toast = useToast()
   const { data } = useAsync(() => api.items({ limit: 500 }), [])
   const [name, setName] = useState(existing?.name || '')
   const [occasion, setOccasion] = useState(existing?.occasion || 'everyday')
   const [picked, setPicked] = useState(() => (existing?.items || []).map((i) => i.id))
+  const [isBase, setIsBase] = useState(!!existing?.is_base)
   const [layer, setLayer] = useState('top')
   const [busy, setBusy] = useState(false)
+
+  // A base seeds a new outfit: its pieces come in already picked, and the rest
+  // is built on top.
+  const startFrom = (base) => {
+    setPicked(base.items.map((i) => i.id))
+    if (base.occasion) setOccasion(base.occasion)
+    if (!name.trim()) setName('')
+  }
 
   const items = data?.items || []
   const byLayer = useMemo(() => {
@@ -39,7 +48,8 @@ function Builder({ open, onClose, onSaved, existing }) {
     if (!picked.length) return toast('Pick at least one item.', 'error')
     setBusy(true)
     try {
-      const body = { name: name.trim(), occasion, item_ids: picked, is_favourite: !!existing?.is_favourite }
+      const body = { name: name.trim(), occasion, item_ids: picked,
+                     is_favourite: !!existing?.is_favourite, is_base: isBase }
       existing ? await api.updateOutfit(existing.id, body) : await api.createOutfit(body)
       toast(existing ? 'Outfit updated.' : 'Outfit saved.', 'success')
       onSaved()
@@ -64,6 +74,29 @@ function Builder({ open, onClose, onSaved, existing }) {
               {OCCASIONS.map((o) => <option key={o} value={o}>{titleCase(o)}</option>)}
             </select>
           </Field>
+        </div>
+
+        {!existing && bases.length > 0 && (
+          <Field label="Start from a base">
+            <div className="rail">
+              {bases.map((b) => (
+                <Chip key={b.id} onClick={() => startFrom(b)}>
+                  <Icon name="layers" size={14} /> {b.name}
+                </Chip>
+              ))}
+            </div>
+          </Field>
+        )}
+
+        <div className="rail">
+          <Chip active={isBase} onClick={() => setIsBase(!isBase)}>
+            <Icon name="layers" size={14} /> This is a base
+          </Chip>
+          <span className="self-center text-xs" style={{ color: 'var(--muted)' }}>
+            {isBase
+              ? 'A starting point — the Today page suggests the rest around these pieces.'
+              : 'Pick several tops, bottoms or shoes and they become options: wearing the outfit picks the best one for the day.'}
+          </span>
         </div>
 
         {chosen.length > 0 && (
@@ -127,13 +160,17 @@ export default function Outfits() {
   const [busy, setBusy] = useState(null)
 
   const outfits = data?.outfits || []
+  const bases = outfits.filter((o) => o.is_base)
 
   const wear = async (outfit) => {
     setBusy(outfit.id)
     try {
       const res = await api.logWear({ outfit_id: outfit.id, occasion: outfit.occasion })
       const dirty = res.now_needing_wash?.length
-      toast(dirty ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing.` : 'Outfit logged.', 'success')
+      const names = res.resolved ? res.wear.items.map((i) => i.name).join(', ') : null
+      toast(names
+        ? `Picked for today: ${names}.`
+        : dirty ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing.` : 'Outfit logged.', 'success')
       reload(true)
     } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
   }
@@ -180,7 +217,15 @@ export default function Outfits() {
             <div key={o.id} className="card overflow-hidden">
               <div className="flex items-start justify-between gap-2 px-4 pt-3.5">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{o.name}</p>
+                  <p className="truncate font-semibold">
+                    {o.name}
+                    {o.is_base && (
+                      <span className="ml-2 rounded-full px-2 py-0.5 text-2xs font-bold align-middle"
+                            style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+                        Base
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs" style={{ color: 'var(--muted)' }}>
                     {titleCase(o.occasion || 'any')} · warmth {o.total_warmth} · worn {o.times_worn}×
                   </p>
@@ -200,6 +245,14 @@ export default function Outfits() {
                 ))}
               </div>
 
+              {Object.keys(o.option_layers || {}).length > 0 && (
+                <p className="px-4 pb-2 text-xs" style={{ color: 'var(--muted)' }}>
+                  Options: {Object.entries(o.option_layers)
+                    .map(([l, n]) => `${n} ${titleCase(l)}`).join(' · ')} — wearing picks
+                  the best for the day.
+                </p>
+              )}
+
               {o.needs_wash && (
                 <p className="px-4 pb-2 text-xs font-medium" style={{ color: 'var(--bad)' }}>
                   Something in this outfit needs washing
@@ -207,9 +260,15 @@ export default function Outfits() {
               )}
 
               <div className="flex gap-2 px-4 pb-3">
-                <button className="btn btn-primary flex-1" onClick={() => wear(o)} disabled={busy === o.id}>
-                  {busy === o.id ? <Spinner size={16} /> : <Icon name="check" size={16} />} Wear today
-                </button>
+                {o.is_base ? (
+                  <Link to={`/?base=${o.id}`} className="btn btn-primary flex-1">
+                    <Icon name="sparkle" size={16} /> Suggest around this
+                  </Link>
+                ) : (
+                  <button className="btn btn-primary flex-1" onClick={() => wear(o)} disabled={busy === o.id}>
+                    {busy === o.id ? <Spinner size={16} /> : <Icon name="check" size={16} />} Wear today
+                  </button>
+                )}
                 <button className="btn" onClick={() => setEditing(o)}><Icon name="edit" size={16} /></button>
                 <button className="btn btn-ghost" onClick={() => remove(o)}><Icon name="trash" size={16} /></button>
               </div>
@@ -218,7 +277,7 @@ export default function Outfits() {
         </div>
       </Section>
 
-      {building && <Builder open onClose={() => setBuilding(false)} onSaved={() => reload(true)} />}
+      {building && <Builder open bases={bases} onClose={() => setBuilding(false)} onSaved={() => reload(true)} />}
       {editing && <Builder open existing={editing} onClose={() => setEditing(null)} onSaved={() => reload(true)} />}
     </div>
   )

@@ -139,6 +139,15 @@ plus stars — and the comfort verdict is what shifts the warmth calibration tow
 *you* feel a temperature. Entries can be deleted, which puts the wear counters back, or
 have a single garment taken out of them.
 
+**Outfits can hold options.** Save three tops and two pairs of shoes in one outfit and
+they are alternatives, not layers: wearing it wears one of each, chosen against the day's
+weather by the same scorer the suggester uses, with clean options beating dirty ones.
+Accessories still stack — a belt and a beanie are worn together, never traded off.
+
+**Bases are outfits to build around.** Save trainers and joggers as a "Gym" base and the
+Today page offers "Build around: Gym" — every suggestion then includes those pieces and
+fills in the rest. A base also seeds the outfit builder as a starting point.
+
 **Occasion tags steer the builder.** Tag trousers "gym, date" and they are preferred for
 those occasions and left out of the rest; an untagged item stays available everywhere and
 is judged on formality alone. "smart" and "comfy" describe a garment rather than commit it,
@@ -284,6 +293,7 @@ PYTHONPATH=backend .venv/bin/python backend/tests/test_colours.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_categories.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_history.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_blend.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_outfit_options.py
 ```
 
 ---

@@ -64,11 +64,20 @@ def care_out(row: dict | None) -> dict | None:
 def outfit_out(row: dict, items: list[dict]) -> dict:
     outfit = dict(row)
     outfit["is_favourite"] = bool(outfit.get("is_favourite"))
+    outfit["is_base"] = bool(outfit.get("is_base"))
     outfit["items"] = items
-    outfit["total_warmth"] = sum(
-        int(i.get("warmth") or 0) for i in items
-        if i.get("layer") in ("bottom", "top", "mid", "outer", "footwear")
-    )
+
+    # Several items on one of these layers are alternatives, not layers worn
+    # together — wearing the outfit picks one. Warmth averages the options per
+    # layer instead of summing three t-shirts into a heatwave.
+    warmth_layers: dict[str, list[int]] = {}
+    for item in items:
+        if item.get("layer") in ("bottom", "top", "mid", "outer", "footwear"):
+            warmth_layers.setdefault(item["layer"], []).append(int(item.get("warmth") or 0))
+    outfit["total_warmth"] = round(sum(
+        sum(vals) / len(vals) for vals in warmth_layers.values()))
+    outfit["option_layers"] = {layer: len(vals) for layer, vals
+                               in warmth_layers.items() if len(vals) > 1}
     formalities = [int(i["formality"]) for i in items if i.get("formality")]
     outfit["formality"] = round(sum(formalities) / len(formalities), 1) if formalities else None
     outfit["needs_wash"] = any(i.get("needs_wash") for i in items)

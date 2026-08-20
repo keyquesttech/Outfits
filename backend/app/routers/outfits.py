@@ -61,8 +61,9 @@ def _write_items(outfit_id: int, item_ids: list[int]) -> None:
 @router.post("", status_code=201)
 def create_outfit(payload: OutfitIn):
     outfit_id = db.execute(
-        "INSERT INTO outfits(name, occasion, notes, is_favourite) VALUES (?,?,?,?)",
-        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite)),
+        "INSERT INTO outfits(name, occasion, notes, is_favourite, is_base) VALUES (?,?,?,?,?)",
+        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite),
+         int(payload.is_base)),
     )
     _write_items(outfit_id, payload.item_ids)
     return _hydrate(db.query_one("SELECT * FROM outfits WHERE id = ?", (outfit_id,)))
@@ -73,8 +74,10 @@ def update_outfit(outfit_id: int, payload: OutfitIn):
     if not db.query_one("SELECT id FROM outfits WHERE id = ?", (outfit_id,)):
         raise HTTPException(404, "Outfit not found")
     db.execute(
-        "UPDATE outfits SET name = ?, occasion = ?, notes = ?, is_favourite = ? WHERE id = ?",
-        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite), outfit_id),
+        "UPDATE outfits SET name = ?, occasion = ?, notes = ?, is_favourite = ?, "
+        "is_base = ? WHERE id = ?",
+        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite),
+         int(payload.is_base), outfit_id),
     )
     _write_items(outfit_id, payload.item_ids)
     return _hydrate(db.query_one("SELECT * FROM outfits WHERE id = ?", (outfit_id,)))

@@ -12,11 +12,16 @@ _schema_done = False
 
 # Columns added or removed after the first release. The schema file is the
 # source of truth; this brings an existing database into line with it.
-ADDED_COLUMNS = {"items": {
-    "fit": "TEXT",
-    "damage": "TEXT NOT NULL DEFAULT 'none'",
-    "takes_belt": "INTEGER NOT NULL DEFAULT 1",
-}}
+ADDED_COLUMNS = {
+    "items": {
+        "fit": "TEXT",
+        "damage": "TEXT NOT NULL DEFAULT 'none'",
+        "takes_belt": "INTEGER NOT NULL DEFAULT 1",
+    },
+    "outfits": {
+        "is_base": "INTEGER NOT NULL DEFAULT 0",
+    },
+}
 DROPPED_COLUMNS = {"items": ["price", "currency", "purchase_date"]}
 
 

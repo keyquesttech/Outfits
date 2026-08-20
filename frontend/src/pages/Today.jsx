@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../api.js'
 import { useMeta } from '../App.jsx'
 import { useAsync, useLocalState } from '../hooks.js'
@@ -260,13 +260,23 @@ export default function Today() {
   const [wearing, setWearing] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
+  // A base is a saved partial outfit — trainers and joggers filed as "Gym".
+  // Selecting one pins its pieces, and every suggestion is built around them.
+  const [params, setParams] = useSearchParams()
+  const baseId = Number(params.get('base')) || null
+  const saved = useAsync(() => api.outfits(), [])
+  const bases = (saved.data?.outfits || []).filter((o) => o.is_base)
+  const base = bases.find((b) => b.id === baseId) || null
+  const setBase = (id) => setParams(id ? { base: String(id) } : {}, { replace: true })
+
   const weather = useAsync(() => api.weather(), [])
   const load = useCallback(
     () => api.suggest({ occasion, count: 3, exclude_dirty: excludeDirty,
-                        day_offset: dayOffset, use_ai: wantsAI }),
-    [occasion, excludeDirty, dayOffset, wantsAI]
+                        day_offset: dayOffset, use_ai: wantsAI,
+                        pinned: base ? base.items.map((i) => i.id) : undefined }),
+    [occasion, excludeDirty, dayOffset, wantsAI, base?.id]
   )
-  const suggestions = useAsync(load, [occasion, excludeDirty, dayOffset, wantsAI])
+  const suggestions = useAsync(load, [occasion, excludeDirty, dayOffset, wantsAI, base?.id])
 
   const refreshWeather = async () => {
     setRefreshing(true)
@@ -318,6 +328,24 @@ export default function Today() {
             </Chip>
           ))}
         </div>
+        {bases.length > 0 && (
+          <div className="rail items-center">
+            <span className="shrink-0 text-xs" style={{ color: 'var(--muted)' }}>
+              Build around
+            </span>
+            {bases.map((b) => (
+              <Chip key={b.id} active={base?.id === b.id}
+                    onClick={() => setBase(base?.id === b.id ? null : b.id)}>
+                <Icon name="layers" size={14} /> {b.name}
+              </Chip>
+            ))}
+            {base && (
+              <span className="shrink-0 text-xs" style={{ color: 'var(--muted)' }}>
+                — every suggestion includes {base.items.length} pinned piece{base.items.length === 1 ? '' : 's'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <Section
