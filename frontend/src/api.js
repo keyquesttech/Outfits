@@ -81,6 +81,7 @@ export const api = {
   wears: (params) => get('/api/wear' + qs(params)),
   logWear: (body) => post('/api/wear', body),
   rateComfort: (id, verdict) => post(`/api/wear/${id}/comfort?verdict=${verdict}`),
+  updateWear: (id, body) => patch(`/api/wear/${id}`, body),
   deleteWear: (id) => del(`/api/wear/${id}`),
   removeWearItem: (wearId, itemId) => del(`/api/wear/${wearId}/items/${itemId}`),
 

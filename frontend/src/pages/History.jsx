@@ -8,12 +8,6 @@ import {
   useToast,
 } from '../components/ui.jsx'
 
-const COMFORT = {
-  '-1': { label: 'Too cold', tone: 'accent' },
-  0: { label: 'Just right', tone: 'good' },
-  1: { label: 'Too hot', tone: 'warn' },
-}
-
 /**
  * Dates as a person reads them. "Today" and "Yesterday" beat an ISO string for
  * the two entries you are most likely to be correcting.
@@ -30,8 +24,83 @@ function dayLabel(iso) {
   return days < 365 ? label : `${label} ${worn.getFullYear()}`
 }
 
-function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
-  const comfort = wear.comfort_rating != null ? COMFORT[String(wear.comfort_rating)] : null
+const COMFORT_CHOICES = [
+  { verdict: -1, label: 'Too cold' },
+  { verdict: 0, label: 'Just right' },
+  { verdict: 1, label: 'Too hot' },
+]
+
+/**
+ * How the outfit actually went.
+ *
+ * Comfort and rating could only be set at the moment of logging, which is the
+ * one moment you cannot know how the day turned out — so in practice neither
+ * was ever set, and the calibration that reads them had nothing to learn from.
+ *
+ * Comfort is the one that does work: it feeds the personal warmth offset, so
+ * the suggestions shift towards how you experience a temperature rather than
+ * how an average body does. The stars are for you.
+ */
+function Feedback({ wear, onSave, busy }) {
+  const comfort = wear.comfort_rating
+  const rating = wear.rating || 0
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t pt-3"
+         style={{ borderColor: 'var(--border)' }}>
+      <div className="flex items-center gap-2">
+        <span className="text-2xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--muted)' }}>
+          How did it feel
+        </span>
+        <div className="flex gap-1">
+          {COMFORT_CHOICES.map((c) => (
+            <button
+              key={c.verdict} type="button" disabled={busy}
+              className={`chip ${comfort === c.verdict ? 'chip-on' : ''}`}
+              onClick={() => onSave({ comfort_rating: comfort === c.verdict ? null : c.verdict })}
+              aria-pressed={comfort === c.verdict}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className="text-2xs font-semibold uppercase tracking-wide"
+              style={{ color: 'var(--muted)' }}>
+          Rate it
+        </span>
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n} type="button" disabled={busy}
+              className="rounded p-0.5"
+              aria-label={`${n} star${n === 1 ? '' : 's'}`}
+              // Tapping the star you already gave clears it, so a mis-tap is
+              // undoable without a separate control.
+              onClick={() => onSave({ rating: rating === n ? null : n })}
+              style={{ color: n <= rating ? 'var(--accent)' : 'var(--border)' }}
+            >
+              <Icon name="star" size={16}
+                    style={{ fill: n <= rating ? 'var(--accent)' : 'none' }} />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {comfort != null && wear.apparent_c == null && (
+        <span className="text-2xs" style={{ color: 'var(--muted)' }}>
+          Saved, but with no weather on this wear it cannot calibrate.
+        </span>
+      )}
+    </div>
+  )
+}
+
+
+function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
   const [editing, setEditing] = useState(false)
   const working = busy === wear.id
 
@@ -53,11 +122,7 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
              style={{ color: 'var(--muted)' }}>
             {wear.apparent_c != null && <span>felt like {Math.round(wear.apparent_c)} °C</span>}
             {wear.condition && <span>{wear.condition}</span>}
-            {comfort && (
-              <span style={{ color: `var(--${comfort.tone})`, fontWeight: 600 }}>
-                {comfort.label}
-              </span>
-            )}
+            {wear.rating ? <span>{'★'.repeat(wear.rating)}</span> : null}
           </p>
         </div>
         <button
@@ -87,9 +152,12 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
                 <p className="mt-1 truncate text-2xs">{item.name}</p>
               </Link>
               {editing && (
+                // Inside the frame, like every other badge in the app. Hung
+                // outside on a negative offset it floated in the gap between
+                // two photos and read as belonging to neither.
                 <button
-                  className="absolute -right-1 -top-1 rounded-full p-1"
-                  style={{ background: 'var(--bad)', color: '#fff' }}
+                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full ring-2"
+                  style={{ background: 'var(--bad)', color: '#fff', '--tw-ring-color': 'var(--surface)' }}
                   aria-label={`Remove ${item.name} from this wear`}
                   disabled={working}
                   onClick={() => onRemoveItem(wear, item)}
@@ -112,6 +180,8 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
       {wear.notes && (
         <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{wear.notes}</p>
       )}
+
+      <Feedback wear={wear} busy={working} onSave={(patch) => onFeedback(wear, patch)} />
     </div>
   )
 }
@@ -138,6 +208,19 @@ export default function History() {
     try {
       await api.deleteWear(wear.id)
       toast('Wear deleted and counters put back.', 'success')
+      reload(true)
+    } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
+  }
+
+  const saveFeedback = async (wear, patch) => {
+    setBusy(wear.id)
+    try {
+      const res = await api.updateWear(wear.id, patch)
+      if ('comfort_rating' in patch && patch.comfort_rating !== null) {
+        toast(res.calibrated
+          ? `Noted. Your warmth offset is now ${res.personal_offset > 0 ? '+' : ''}${res.personal_offset}.`
+          : 'Noted.', 'success')
+      }
       reload(true)
     } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
   }
@@ -188,6 +271,7 @@ export default function History() {
                   <WearCard
                     key={wear.id} wear={wear} busy={busy}
                     onDeleteWear={deleteWear} onRemoveItem={removeItem}
+                    onFeedback={saveFeedback}
                   />
                 ))}
               </div>

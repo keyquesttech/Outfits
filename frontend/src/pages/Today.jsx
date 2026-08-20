@@ -276,7 +276,11 @@ export default function Today() {
     try {
       const res = await api.logWear({ item_ids: suggestion.item_ids, occasion })
       const dirty = res.now_needing_wash?.length
-      toast(dirty ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing.` : 'Logged today’s outfit.', 'success')
+      // Point at where the feedback lives, since that is the whole loop: the
+      // warmth calibration only learns from comfort ratings given after a wear.
+      toast(dirty
+        ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing. Rate it in History.`
+        : 'Logged. Say how it felt in History and the suggestions calibrate to you.', 'success')
       suggestions.reload(true)
     } catch (e) {
       toast(e.message, 'error')

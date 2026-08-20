@@ -110,6 +110,14 @@ class WearIn(BaseModel):
     condition: str | None = None
 
 
+class WearPatch(BaseModel):
+    """Feedback on a wear that has already been logged."""
+    comfort_rating: int | None = Field(default=None, ge=-1, le=1)
+    rating: int | None = Field(default=None, ge=1, le=5)
+    occasion: str | None = None
+    notes: str | None = None
+
+
 class WashIn(BaseModel):
     item_ids: list[int]
     washed_on: str | None = None

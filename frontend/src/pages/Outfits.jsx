@@ -76,8 +76,10 @@ function Builder({ open, onClose, onSaved, existing }) {
               {chosen.map((i) => (
                 <button key={i.id} onClick={() => toggle(i.id)} className="relative w-16 shrink-0" title="Remove">
                   <div className="aspect-[3/4] overflow-hidden rounded-lg"><ItemPhoto item={i} rounded="rounded-lg" /></div>
-                  <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                        style={{ background: 'var(--bad)' }}><Icon name="close" size={12} /></span>
+                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2"
+                        style={{ background: 'var(--bad)', '--tw-ring-color': 'var(--surface)' }}>
+                    <Icon name="close" size={12} />
+                  </span>
                 </button>
               ))}
             </div>

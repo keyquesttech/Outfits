@@ -3,7 +3,7 @@ from datetime import date
 from fastapi import APIRouter, HTTPException
 
 from .. import db, recommend, wash, weather
-from ..models import WearIn
+from ..models import WearIn, WearPatch
 from ..serializers import load_items
 
 router = APIRouter(prefix="/api/wear", tags=["wear"])
@@ -92,6 +92,65 @@ def log_wear(payload: WearIn):
     }
 
 
+def _record_comfort(wear_id: int, row: dict, verdict: int) -> float | None:
+    """Store a comfort verdict, and calibrate with it when that is possible.
+
+    Calibration compares how warm the outfit was against how warm it actually
+    was outside, so a wear with no weather against it cannot contribute. That is
+    not a reason to refuse the rating — a back-filled Tuesday is still worth
+    recording — so the verdict is kept either way and only the calibration is
+    skipped.
+    """
+    db.execute("UPDATE wear_log SET comfort_rating = ? WHERE id = ?", (verdict, wear_id))
+    apparent = row.get("apparent_c")
+    if apparent is None:
+        return None
+    ids = [r["item_id"] for r in db.query(
+        "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)
+    )]
+    return recommend.record_comfort(
+        apparent, recommend.outfit_warmth(load_items(ids)), verdict, wear_id)
+
+
+@router.patch("/{wear_id}")
+def update_wear(wear_id: int, payload: WearPatch):
+    """Feedback after the fact: how it felt, how much you liked it, what for.
+
+    Everything here was settable only at the moment of logging, which is the one
+    moment you cannot yet know how the day went.
+    """
+    row = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))
+    if not row:
+        raise HTTPException(404, "Wear log not found")
+
+    fields = payload.model_dump(exclude_unset=True)
+    offset = None
+    if "comfort_rating" in fields:
+        verdict = fields.pop("comfort_rating")
+        if verdict is None:
+            # Tapping the verdict you already gave takes it back. The feedback
+            # row has to go with it, or the calibration keeps learning from an
+            # answer that has been withdrawn.
+            db.execute("UPDATE wear_log SET comfort_rating = NULL WHERE id = ?", (wear_id,))
+            db.execute("DELETE FROM comfort_feedback WHERE wear_log_id = ?", (wear_id,))
+            offset = recommend.personal_offset()
+            db.set_setting("warmth_offset", f"{offset:.2f}")
+        else:
+            offset = _record_comfort(wear_id, row, int(verdict))
+
+    updates = {k: v for k, v in fields.items() if k in ("rating", "occasion", "notes")}
+    if updates:
+        sets = ", ".join(f"{k} = ?" for k in updates)
+        db.execute(f"UPDATE wear_log SET {sets} WHERE id = ?", (*updates.values(), wear_id))
+
+    calibrated = offset is not None and row.get("apparent_c") is not None
+    return {
+        "wear": _hydrate(db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))),
+        "personal_offset": round(offset, 2) if offset is not None else None,
+        "calibrated": calibrated,
+    }
+
+
 @router.post("/{wear_id}/comfort")
 def rate_comfort(wear_id: int, verdict: int):
     """-1 too cold, 0 just right, 1 too hot. This is what calibrates the recommender."""
@@ -100,17 +159,10 @@ def rate_comfort(wear_id: int, verdict: int):
     row = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))
     if not row:
         raise HTTPException(404, "Wear log not found")
-    apparent = row["apparent_c"]
-    if apparent is None:
-        raise HTTPException(400, "That wear has no weather recorded, so it cannot calibrate")
-    ids = [r["item_id"] for r in db.query(
-        "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)
-    )]
-    db.execute("UPDATE wear_log SET comfort_rating = ? WHERE id = ?", (verdict, wear_id))
-    offset = recommend.record_comfort(
-        apparent, recommend.outfit_warmth(load_items(ids)), verdict, wear_id
-    )
-    return {"wear_id": wear_id, "verdict": verdict, "personal_offset": round(offset, 2)}
+    offset = _record_comfort(wear_id, row, verdict)
+    return {"wear_id": wear_id, "verdict": verdict,
+            "personal_offset": round(offset, 2) if offset is not None else None,
+            "calibrated": offset is not None}
 
 
 @router.delete("/{wear_id}/items/{item_id}")
