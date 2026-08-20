@@ -76,6 +76,7 @@ function Suggestion({ hex, name, active, note, onClick }) {
  */
 export default function ColourField({
   label, hint, value, onChange, meta, palette = [], options = [],
+  allowNone = false, noneLabel = 'None',
 }) {
   const [browsing, setBrowsing] = useState(false)
   const listId = useId()
@@ -154,10 +155,23 @@ export default function ColourField({
         </p>
       )}
 
-      {(picks.length > 0 || alternates.length > 0) && (
+      {(allowNone || picks.length > 0 || alternates.length > 0) && (
         <div className="mt-1.5 space-y-1">
-          {picks.length > 0 && (
+          {(allowNone || picks.length > 0) && (
             <div className="rail">
+              {/* Most garments are one colour, and an empty field is ambiguous:
+                  it could mean "no second colour" or "not filled in yet". This
+                  makes the common answer a deliberate one-tap choice. */}
+              {allowNone && (
+                <button
+                  type="button" onClick={() => onChange('')} className="chip"
+                  style={reading.empty
+                    ? { borderColor: 'var(--accent)', color: 'var(--accent)' }
+                    : undefined}
+                >
+                  <Icon name="close" size={12} /> {noneLabel}
+                </button>
+              )}
               {picks.map((c) => (
                 <Suggestion key={c.name} {...c} active={current === c.name}
                             onClick={() => pick(c.name)} />

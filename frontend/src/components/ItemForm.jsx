@@ -255,7 +255,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         <ColourField
           label="Secondary colour"
           hint="Only if a second colour is really part of the garment — a contrast panel, not a small print."
-          meta={meta} palette={palette}
+          meta={meta} palette={palette} allowNone noneLabel="No second colour"
           value={form.colour_secondary} options={known.colour_secondary}
           onChange={(v) => setForm({ ...form, colour_secondary: v })}
         />

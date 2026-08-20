@@ -520,10 +520,7 @@ export default function Settings() {
   const keySet = data.settings.gemini_api_key_set
 
   return (
-    /* A settings form is reading-width work, not a grid. Left full-width it
-       stretched every field and checkbox to 1400px with the label hugging the
-       left edge and nothing else on the line. */
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <PageHeader title="Settings" description="Weather, location, AI and how the wardrobe is filed." />
 
       {/* Sticks under the header so the save state stays visible while you
