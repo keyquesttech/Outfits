@@ -7,12 +7,13 @@ recommender, the wear log, the UI — needs to know which service supplied it.
 import time
 
 from .. import db
-from . import geoip, history, metoffice, openmeteo, warnings
+from . import blend, geoip, history, metoffice, openmeteo, warnings
 from .codes import describe  # re-exported; callers still do weather.describe(...)
 
 PROVIDERS = {
     openmeteo.NAME: openmeteo,
     metoffice.NAME: metoffice,
+    blend.NAME: blend,
 }
 
 # One automatic call every five hours, whichever provider is selected. Pressing
@@ -102,6 +103,9 @@ def fetch(force: bool = False) -> dict:
             api_key=cfg["metoffice_key"], optimize=cfg["optimize"],
         )
         _count_call(module.NAME, raw.get("calls", 0))
+        # The blend spends one DataHub call per refresh when a key is saved;
+        # that allowance is metered wherever the call came from.
+        _count_call(metoffice.NAME, raw.get("metoffice_calls", 0))
     except Exception as exc:
         # A configuration mistake should degrade to the last good forecast, or to
         # a clear message — never to a blank page.
@@ -146,10 +150,11 @@ def _with_warnings(data: dict, cfg: dict) -> dict:
         data["warnings"] = _no_warnings("disabled", "Warnings are switched off.")
         return data
 
-    if cfg["provider"] != metoffice.NAME:
+    if cfg["provider"] not in (metoffice.NAME, blend.NAME):
         data["warnings"] = _no_warnings(
             "provider",
-            "Met Office warnings appear when the Met Office is the forecast source.")
+            "Met Office warnings appear when the Met Office or the Blend is the "
+            "forecast source.")
         return data
 
     region = warnings.region_for(cfg["lat"], cfg["lon"])
@@ -184,17 +189,23 @@ def check(provider: str | None = None, api_key: str | None = None) -> dict:
     return module.check(api_key=key, lat=cfg["lat"], lon=cfg["lon"])
 
 
+PROVIDER_BLURBS = {
+    openmeteo.NAME: "Free and keyless. Global coverage, no account needed.",
+    metoffice.NAME: "UK forecasts from the Met Office. Needs a free DataHub API key.",
+    blend.NAME: ("Four independent models — Met Office UKV, ECMWF, DWD ICON, NOAA GFS "
+                 "— combined into one forecast, still free and keyless. A consensus "
+                 "beats any single model, and a saved Met Office key joins the "
+                 "DataHub feed as a fifth voice."),
+}
+
+
 def provider_info() -> list[dict]:
     return [
         {
             "name": m.NAME,
             "label": m.LABEL,
             "needs_key": m.NEEDS_KEY,
-            "description": (
-                "Free and keyless. Global coverage, no account needed."
-                if m.NAME == openmeteo.NAME else
-                "UK forecasts from the Met Office. Needs a free DataHub API key."
-            ),
+            "description": PROVIDER_BLURBS[m.NAME],
         }
-        for m in (openmeteo, metoffice)
+        for m in (blend, openmeteo, metoffice)
     ]

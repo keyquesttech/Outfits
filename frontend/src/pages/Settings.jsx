@@ -289,7 +289,7 @@ function WeatherSettings({ data, form, setForm, queue }) {
               style={current === p.name ? { borderColor: 'var(--accent)' } : undefined}
             >
               <span style={{ color: 'var(--accent)', marginTop: 2 }}>
-                <WeatherIcon group={p.name === 'metoffice' ? 'rain' : 'clear'} size={18} />
+                <WeatherIcon group={p.name === 'metoffice' ? 'rain' : p.name === 'blend' ? 'cloud' : 'clear'} size={18} />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">
@@ -310,13 +310,15 @@ function WeatherSettings({ data, form, setForm, queue }) {
         </div>
       </Field>
 
-      {current === 'metoffice' && (
+      {(current === 'metoffice' || current === 'blend') && (
         <>
           <Field
             label="Met Office DataHub API key"
             hint={keySet
               ? 'A key is stored. Leave blank to keep it, or paste a new one to replace it.'
-              : 'Create a free account at datahub.metoffice.gov.uk and subscribe to Site Specific.'}
+              : current === 'blend'
+                ? 'Optional for the Blend — with a key the DataHub feed joins as a fifth model. Free at datahub.metoffice.gov.uk, subscribe to Site Specific.'
+                : 'Create a free account at datahub.metoffice.gov.uk and subscribe to Site Specific.'}
           >
             <input className="input" type="password" autoComplete="off"
                    placeholder={keySet ? '••••••••••••  (stored)' : 'paste your key'}

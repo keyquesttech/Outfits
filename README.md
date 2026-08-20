@@ -91,8 +91,15 @@ overcoat.
 feels-like temperature, plus rain, wind, occasion and colour harmony. Every suggestion
 shows its reasoning, so a bad suggestion tells you which dial to turn.
 
-**Two forecast sources.** Open-Meteo (free, keyless, global) or the Met Office DataHub
-Site Specific API for the UK. Met Office needs a free API key.
+**Three forecast sources.** The default worth using is the **Blend**: four independent
+models — the Met Office's own UKV, ECMWF's IFS, DWD's ICON and NOAA's GFS — fetched in one
+free, keyless request and combined into a consensus. Temperatures take the median, so one
+model having a bad day cannot drag the answer; rain chances are averaged, which is what
+keeps probabilities honest; conditions go to a majority vote. A consensus of models beats
+any single model, and the disagreement is shown rather than hidden — the Today page says
+how tightly the models agree. Save a Met Office DataHub key and that feed joins as a fifth
+voice. The alternatives remain: plain Open-Meteo, or the Met Office DataHub alone (needs a
+free API key).
 
 The forecast refreshes **once every five hours** — about five calls a day, roughly 144 a
 month with **Optimise for the free plan** on, which uses a single three-hourly request
@@ -276,6 +283,7 @@ invented. They run under pytest, and on their own where pytest is not installed:
 PYTHONPATH=backend .venv/bin/python backend/tests/test_colours.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_categories.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_history.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_blend.py
 ```
 
 ---
@@ -343,8 +351,8 @@ missing.
 Warnings come from the Met Office public RSS feed, which needs no key. They appear only
 when all three of these hold:
 
-1. The Met Office is the selected forecast source — they are a Met Office product, and
-   showing them beside an Open-Meteo forecast would misattribute them.
+1. The Met Office or the Blend is the selected forecast source — they are a Met Office
+   product, and the Blend always carries the Met Office's UKV model.
 2. Your location is in the UK. The region is derived from your coordinates by matching
    against anchor towns in each of the 16 warning regions; a single centroid per region
    is not accurate enough, since it places Cardiff in South West England.

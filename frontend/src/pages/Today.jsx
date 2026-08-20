@@ -126,6 +126,11 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
               <p className="mt-1 truncate text-base font-semibold">{c.condition?.label}</p>
               <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
                 {weather.location} · {weather.provider_label}
+                {weather.blend?.member_count > 1 && (
+                  <> · {weather.blend.member_count} models
+                    {weather.blend.spread_c > 0 && ` within ±${(weather.blend.spread_c / 2).toFixed(1)}°`}
+                  </>
+                )}
                 {weather.stale && ' · last known forecast'}
               </p>
             </div>
