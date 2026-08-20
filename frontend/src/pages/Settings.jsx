@@ -17,6 +17,15 @@ const TYPING = 800
 const SECRET = 1400
 const INSTANT = 0
 
+/**
+ * Shown only while a save is in flight or has just landed.
+ *
+ * This used to live in a bar pinned under the header, which meant that for the
+ * whole time nothing was saving — almost always — a strip reading "Changes save
+ * automatically" followed you down the page for no reason. The sentence is a
+ * fact about the page, so it is stated once at the top; the status is an event,
+ * so it appears when there is an event and then goes away.
+ */
 function SaveStatus({ status }) {
   const map = {
     idle: null,
@@ -27,11 +36,14 @@ function SaveStatus({ status }) {
   const s = map[status]
   if (!s) return null
   return (
-    <span className="flex items-center gap-1.5 text-xs font-semibold"
-          style={{ color: `var(--${s.tone})` }}>
-      {status === 'saving' ? <Spinner size={14} /> : <Icon name="check" size={14} />}
-      {s.text}
-    </span>
+    <div className="toast-dock pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
+         role="status" aria-live="polite">
+      <span className="card fade-up flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold"
+            style={{ color: `var(--${s.tone})` }}>
+        {status === 'saving' ? <Spinner size={14} /> : <Icon name="check" size={14} />}
+        {s.text}
+      </span>
+    </div>
   )
 }
 
@@ -521,25 +533,11 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Settings" description="Weather, location, AI and how the wardrobe is filed." />
-
-      {/* Sticks under the header so the save state stays visible while you
-          scroll. It used to bleed out with a hard-coded -mx-4, which was the
-          wrong amount on any screen wide enough to grow the page padding. */}
-      <div
-        className="sticky z-20 flex items-center justify-between gap-3 border-b py-2"
-        style={{
-          top: 'var(--header-h)',
-          borderColor: 'var(--border)',
-          background: 'color-mix(in srgb, var(--bg) 92%, transparent)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        <p className="text-xs" style={{ color: 'var(--muted)' }}>
-          Changes save automatically.
-        </p>
-        <SaveStatus status={status} />
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Weather, location, AI and how the wardrobe is filed. Changes save automatically."
+      />
+      <SaveStatus status={status} />
 
       <Section title="Weather">
         <div className="card px-4 py-4">
