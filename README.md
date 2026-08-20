@@ -232,7 +232,9 @@ sudo ip netns exec outfits curl http://localhost/api/health
 | Weather | Open-Meteo | Free, keyless |
 | AI | Gemini REST (optional) | No SDK to keep in step |
 
-No Postgres, no Redis, no Docker. The built frontend is 93 KB gzipped.
+No Postgres, no Redis, no Docker. The built frontend is ~120 KB gzipped, with the two
+typefaces (Inter for the interface, Fraunces for display) bundled locally so nothing is
+fetched from a CDN.
 
 ---
 

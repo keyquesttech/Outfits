@@ -164,21 +164,21 @@ export default function Outfits() {
           />
         )}
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:gap-4 md:grid-cols-2 xl:grid-cols-3">
           {outfits.map((o) => (
-            <div key={o.id} className="card overflow-hidden">
+            <div key={o.id} className="card card-link flex flex-col overflow-hidden">
               <div className="flex items-start justify-between gap-2 px-4 pt-3.5">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">
                     {o.name}
                     {o.is_base && (
-                      <span className="ml-2 rounded-full px-2 py-0.5 text-2xs font-bold align-middle"
+                      <span className="ml-2 rounded-full px-2 py-0.5 text-2xs font-bold align-middle uppercase tracking-wide"
                             style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                         Base
                       </span>
                     )}
                   </p>
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                  <p className="mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
                     {titleCase(o.occasion || 'any')} · warmth {o.total_warmth} · worn {o.times_worn}×
                   </p>
                 </div>
@@ -191,8 +191,11 @@ export default function Outfits() {
 
               <div className="scroll-x flex gap-2 px-4 py-3">
                 {o.items.map((i) => (
-                  <Link key={i.id} to={`/wardrobe/${i.id}`} className="w-16 shrink-0" title={i.name}>
-                    <div className="aspect-[3/4] overflow-hidden rounded-lg"><ItemPhoto item={i} rounded="rounded-lg" /></div>
+                  <Link key={i.id} to={`/wardrobe/${i.id}`} className="w-[4.5rem] shrink-0" title={i.name}>
+                    <div className="aspect-[3/4] overflow-hidden rounded-lg border"
+                         style={{ borderColor: 'var(--border)' }}>
+                      <ItemPhoto item={i} rounded="rounded-[.45rem]" />
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -205,7 +208,7 @@ export default function Outfits() {
                 </p>
               )}
 
-              <div className="flex gap-2 px-4 pb-3">
+              <div className="mt-auto flex gap-2 px-4 pb-3.5 pt-1">
                 {o.is_base ? (
                   <Link to={`/?base=${o.id}`} className="btn btn-primary flex-1">
                     <Icon name="sparkle" size={16} /> Suggest around this

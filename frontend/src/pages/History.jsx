@@ -5,7 +5,7 @@ import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import ItemPicker from '../components/ItemPicker.jsx'
 import {
-  Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Section, Spinner,
+  Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Spinner,
   titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
@@ -342,7 +342,7 @@ export default function History() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader
         title="History"
         description="Everything logged as worn. Deleting an entry puts the wear counters back."
@@ -369,8 +369,22 @@ export default function History() {
       ) : (
         <>
           {days.map((day) => (
-            <Section key={day.date} title={dayLabel(day.date)}>
-              <div className="space-y-2">
+            <section key={day.date} className="space-y-2.5">
+              {/* The date as a milestone on a rule, so scanning down the page
+                  reads as a timeline rather than a pile of cards. */}
+              <div className="flex items-center gap-3">
+                <h2 className="shrink-0 rounded-full border px-3 py-1 text-xs font-bold"
+                    style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  {dayLabel(day.date)}
+                </h2>
+                <span className="h-px flex-1" style={{ background: 'var(--border)' }} />
+                {day.wears.length > 1 && (
+                  <span className="shrink-0 text-2xs" style={{ color: 'var(--muted)' }}>
+                    {day.wears.length} outfits
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2.5">
                 {day.wears.map((wear) => (
                   <WearCard
                     key={wear.id} wear={wear} busy={busy}
@@ -379,7 +393,7 @@ export default function History() {
                   />
                 ))}
               </div>
-            </Section>
+            </section>
           ))}
 
           {wears.length >= limit && (

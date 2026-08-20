@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useContext, useEffect, useMemo } from 'react'
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ConfirmHost, Icon, Spinner, ToastHost } from './components/ui.jsx'
 import { useAsync } from './hooks.js'
@@ -25,25 +25,29 @@ const NAV = [
 
 function TopBar() {
   return (
-    <header
-      className="sticky top-0 z-30 border-b backdrop-blur"
-      style={{ background: 'color-mix(in srgb, var(--bg) 88%, transparent)', borderColor: 'var(--border)' }}
-    >
-      <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 px-[var(--page-pad)] py-2"
+    <header className="chrome sticky top-0 z-30 border-b" style={{ borderColor: 'var(--border)' }}>
+      <div className="mx-auto flex w-full max-w-[90rem] items-center gap-3 px-[var(--page-pad)]"
            style={{ minHeight: 'var(--header-h)' }}>
-        <NavLink to="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg"
-                style={{ background: 'var(--accent)', color: '#fff' }}>
-            <Icon name="hanger" size={18} />
+        <NavLink to="/" className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl"
+                style={{
+                  background: 'linear-gradient(160deg, color-mix(in srgb, var(--accent) 82%, #fff) 0%, var(--accent) 60%)',
+                  color: 'var(--accent-ink)',
+                  boxShadow: '0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent)',
+                }}>
+            <Icon name="hanger" size={19} />
           </span>
-          <span className="text-lg font-bold tracking-tight">Outfits</span>
+          <span className="font-display text-[1.35rem] font-semibold leading-none">Outfits</span>
         </NavLink>
 
-        <nav className="ml-2 hidden items-center gap-0.5 lg:flex xl:ml-4 xl:gap-1">
+        <nav className="ml-3 hidden items-center gap-1 lg:flex xl:ml-6">
           {NAV.map((n) => (
             <NavLink
               key={n.to} to={n.to} end={n.end}
-              className={({ isActive }) => `btn !px-2.5 xl:!px-3.5 ${isActive ? 'btn-primary' : 'btn-ghost'}`}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors xl:px-3.5"
+              style={({ isActive }) => isActive
+                ? { background: 'var(--accent-soft)', color: 'var(--accent)' }
+                : { color: 'var(--muted)' }}
             >
               <Icon name={n.icon} size={16} /> {n.label}
             </NavLink>
@@ -51,8 +55,13 @@ function TopBar() {
         </nav>
 
         <div className="ml-auto">
-          <NavLink to="/settings" className={({ isActive }) => `btn ${isActive ? 'btn-primary' : 'btn-ghost'}`}
-                   aria-label="Settings">
+          <NavLink
+            to="/settings" aria-label="Settings"
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors"
+            style={({ isActive }) => isActive
+              ? { background: 'var(--accent-soft)', color: 'var(--accent)' }
+              : { color: 'var(--muted)' }}
+          >
             <Icon name="gear" size={18} />
             <span className="hidden sm:inline">Settings</span>
           </NavLink>
@@ -66,30 +75,19 @@ function BottomNav() {
   const { pathname } = useLocation()
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
+      className="chrome fixed inset-x-0 bottom-0 z-40 border-t lg:hidden"
       style={{
-        background: 'color-mix(in srgb, var(--bg) 94%, transparent)',
         borderColor: 'var(--border)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        backdropFilter: 'blur(12px)',
       }}
     >
-      <div className="flex items-stretch">
+      <div className="mx-auto flex max-w-xl items-stretch">
         {NAV.map((n) => {
           const active = n.end ? pathname === n.to : pathname.startsWith(n.to)
           return (
-            <NavLink
-              key={n.to} to={n.to} end={n.end}
-              aria-label={n.label}
-              className="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-2xs font-semibold"
-              style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
-            >
-              {/* The active tab gets a filled pill rather than only a colour
-                  change, which is hard to spot at this size. */}
-              <span className="rounded-full px-3 py-0.5"
-                    style={active ? { background: 'var(--accent-soft)' } : undefined}>
-                <Icon name={n.icon} size={18} />
-              </span>
+            <NavLink key={n.to} to={n.to} end={n.end} aria-label={n.label}
+                     className="nav-tab" data-active={active}>
+              <span className="nav-pill"><Icon name={n.icon} size={19} /></span>
               <span className="max-w-full truncate px-0.5">{n.label}</span>
             </NavLink>
           )
@@ -101,6 +99,7 @@ function BottomNav() {
 
 export default function App() {
   const { data: meta, loading, reload } = useAsync(() => api.meta(), [])
+  const { pathname } = useLocation()
 
   // Categories are the user's to change, so meta is no longer fixed for the
   // life of the session. Anything that edits them calls this, and every form
@@ -109,6 +108,10 @@ export default function App() {
     () => ({ ...(meta || {}), reloadMeta: () => reload(true) }),
     [meta, reload],
   )
+
+  // Each page starts at its top. Without this, arriving on a long page keeps
+  // the previous page's scroll position.
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
 
   if (loading) {
     return (
@@ -123,7 +126,7 @@ export default function App() {
       <ToastHost>
         <ConfirmHost>
         <TopBar />
-        <main className="safe-bottom mx-auto w-full max-w-[100rem] px-[var(--page-pad)] py-5 lg:pb-10">
+        <main key={pathname} className="safe-bottom page-fade mx-auto w-full max-w-[90rem] px-[var(--page-pad)] py-5 sm:py-7">
           <Routes>
             <Route path="/" element={<Today />} />
             <Route path="/wardrobe" element={<Wardrobe />} />

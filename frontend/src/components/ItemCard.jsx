@@ -78,7 +78,7 @@ export function ItemGrid({ items, selectedIds, onSelect, compact, empty }) {
   if (!items?.length) return empty || null
   const selected = new Set(selectedIds || [])
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {items.map((item) => (
         <ItemCard
           key={item.id}

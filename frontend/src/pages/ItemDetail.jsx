@@ -125,13 +125,14 @@ export default function ItemDetail() {
 
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <button className="btn btn-ghost -ml-2" onClick={() => navigate(-1)}>
         <Icon name="back" size={16} /> Back
       </button>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,22rem)_1fr]">
-        <div className="space-y-3">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,22rem)_1fr] md:gap-8">
+        {/* The photo keeps you company while the facts scroll. */}
+        <div className="space-y-3 md:sticky md:top-[calc(var(--header-h)+1.25rem)] md:self-start">
           <div className="card aspect-[3/4] overflow-hidden">
             <ItemPhoto item={item} rounded="" full />
           </div>
@@ -196,7 +197,7 @@ export default function ItemDetail() {
         <div className="space-y-4">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">{item.name}</h1>
+              <h1 className="font-display text-2xl font-semibold sm:text-3xl">{item.name}</h1>
               {damaged && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -238,24 +239,24 @@ export default function ItemDetail() {
             <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={16} /> Remove</button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="card px-3 py-2.5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="card px-3.5 py-3">
               <p className="label">Worn</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">{item.total_wears}</p>
+              <p className="font-display mt-0.5 text-xl font-semibold tabular-nums">{item.total_wears}</p>
               {item.last_worn && <p className="text-2xs" style={{ color: 'var(--muted)' }}>last {item.last_worn}</p>}
             </div>
-            <div className="card px-3 py-2.5">
+            <div className="card px-3.5 py-3">
               <p className="label">Warmth</p>
-              <p className="mt-0.5 text-xl font-bold">
+              <p className="font-display mt-0.5 text-xl font-semibold">
                 {addsWarmth ? (warmthBand?.label ?? '—') : 'None'}
               </p>
               <p className="text-2xs" style={{ color: 'var(--muted)' }}>
                 {addsWarmth ? (warmthBand?.hint ?? '') : 'adds no warmth'}
               </p>
             </div>
-            <div className="card px-3 py-2.5">
+            <div className="card px-3.5 py-3">
               <p className="label">Formality</p>
-              <p className="mt-0.5 text-xl font-bold">{formalityBand?.label ?? '—'}</p>
+              <p className="font-display mt-0.5 text-xl font-semibold">{formalityBand?.label ?? '—'}</p>
               <p className="text-2xs" style={{ color: 'var(--muted)' }}>
                 {formalityBand?.hint ?? ''}
               </p>

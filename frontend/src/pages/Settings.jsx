@@ -533,27 +533,58 @@ export default function Settings() {
   const provider = form.ai_provider || 'none'
   const keySet = data.settings.gemini_api_key_set
 
+  const contents = [
+    ['weather', 'Weather', 'cloud'],
+    ['location', 'Location', 'search'],
+    ['ai', 'AI', 'sparkle'],
+    ['appearance', 'Appearance', 'sun'],
+    ['jobs', 'Background jobs', 'refresh'],
+    ['categories', 'Categories', 'layers'],
+    ['colours', 'Colours', 'drop'],
+    ['about', 'About', 'hanger'],
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
         title="Settings"
         description="Weather, location, AI and how the wardrobe is filed. Changes save automatically."
       />
       <SaveStatus status={status} />
 
-      <Section title="Weather">
+      <div className="gap-10 lg:flex lg:items-start">
+        {/* A table of contents once the page is tall and the screen is wide.
+            scroll-padding on the root keeps the header from covering targets. */}
+        <nav className="hidden w-44 shrink-0 lg:sticky lg:top-[calc(var(--header-h)+1.75rem)] lg:block"
+             aria-label="Settings sections">
+          <ul className="space-y-0.5">
+            {contents.map(([id, label, icon]) => (
+              <li key={id}>
+                <a href={`#${id}`}
+                   className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors hover:bg-[var(--surface-2)]"
+                   style={{ color: 'var(--muted)' }}>
+                  <Icon name={icon} size={15} /> {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="min-w-0 flex-1 space-y-6">
+
+      <Section id="weather" title="Weather">
         <div className="card px-4 py-4">
           <WeatherSettings data={data} form={form} setForm={setForm} queue={queue} />
         </div>
       </Section>
 
-      <Section title="Location">
+      <Section id="location" title="Location">
         <div className="card px-4 py-4">
           <LocationPicker form={form} setForm={setForm} queue={queue} />
         </div>
       </Section>
 
-      <Section title="AI">
+      <Section id="ai" title="AI">
         <div className="card space-y-4 px-4 py-4">
           <p className="text-sm" style={{ color: 'var(--muted)' }}>
             Everything works without AI — colours are read from photos regardless, and you can
@@ -629,7 +660,7 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section title="Appearance">
+      <Section id="appearance" title="Appearance">
         <div className="card px-4 py-4">
           <Field label="Theme" hint="Stored in this browser only.">
             <div className="flex gap-2">
@@ -644,6 +675,7 @@ export default function Settings() {
       </Section>
 
       <Section
+        id="jobs"
         title="Background jobs"
         action={
           <button className="btn btn-ghost" onClick={() => jobs.reload()}>
@@ -689,15 +721,15 @@ export default function Settings() {
         </div>
       </Section>
 
-      <Section title="Categories">
+      <Section id="categories" title="Categories">
         <CategoryManager />
       </Section>
 
-      <Section title="Colours">
+      <Section id="colours" title="Colours">
         <ColourMaintenance />
       </Section>
 
-      <Section title="About">
+      <Section id="about" title="About">
         <div className="card px-4 py-4 text-sm" style={{ color: 'var(--muted)' }}>
           <p>Outfits runs entirely on your Raspberry Pi. Photos live on its disk, the database
              is a single SQLite file, and nothing leaves the network unless you turn on an AI
@@ -706,6 +738,9 @@ export default function Settings() {
              <code> data/photos/</code>.</p>
         </div>
       </Section>
+
+        </div>
+      </div>
     </div>
   )
 }

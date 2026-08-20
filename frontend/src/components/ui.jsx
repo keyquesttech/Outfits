@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 /* ---------- icons (inline, so there is no icon package to ship) ---------- */
 
@@ -136,6 +137,8 @@ export function ToastHost({ children }) {
     setToasts((t) => [...t, { id, message, tone }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200)
   }, [])
+  const toneColour = (tone) =>
+    tone === 'error' ? 'var(--bad)' : tone === 'success' ? 'var(--good)' : 'var(--accent)'
   return (
     <ToastCtx.Provider value={push}>
       {children}
@@ -147,9 +150,12 @@ export function ToastHost({ children }) {
           <button
             key={t.id} type="button"
             onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))}
-            className="card fade-up pointer-events-auto max-w-md px-4 py-2.5 text-left text-sm font-medium"
-            style={{ borderColor: t.tone === 'error' ? 'var(--bad)' : t.tone === 'success' ? 'var(--good)' : 'var(--border)' }}
+            className="card fade-up pointer-events-auto flex max-w-md items-start gap-2.5 px-4 py-3 text-left text-sm font-medium"
+            style={{ boxShadow: 'var(--shadow-lift)' }}
           >
+            <span className="mt-0.5 shrink-0" style={{ color: toneColour(t.tone) }}>
+              <Icon name={t.tone === 'error' ? 'close' : 'check'} size={15} strokeWidth="2.4" />
+            </span>
             {t.message}
           </button>
         ))}
@@ -176,13 +182,20 @@ export function EmptyNote({ children, boxed = false }) {
 
 export function EmptyState({ icon = 'hanger', title, hint, action }) {
   return (
-    <div className="card flex flex-col items-center gap-3 px-6 py-12 text-center">
-      <div className="rounded-full p-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-        <Icon name={icon} size={24} />
+    <div className="card relative flex flex-col items-center gap-3 overflow-hidden px-6 py-14 text-center">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-32"
+           style={{ background: 'radial-gradient(24rem 10rem at 50% -4rem, var(--glow), transparent 70%)' }}
+           aria-hidden="true" />
+      <div className="relative rounded-2xl p-3.5"
+           style={{
+             background: 'var(--accent-soft)', color: 'var(--accent)',
+             boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent)',
+           }}>
+        <Icon name={icon} size={26} />
       </div>
-      <p className="text-base font-semibold">{title}</p>
-      {hint && <p className="max-w-sm text-sm" style={{ color: 'var(--muted)' }}>{hint}</p>}
-      {action}
+      <p className="font-display relative text-lg font-semibold">{title}</p>
+      {hint && <p className="relative max-w-sm text-sm" style={{ color: 'var(--muted)' }}>{hint}</p>}
+      {action && <div className="relative mt-1">{action}</div>}
     </div>
   )
 }
@@ -211,27 +224,54 @@ export function Modal({ open, onClose, title, children, footer, wide = false }) 
     }
   }, [open, onClose])
   if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-         style={{ background: 'rgb(0 0 0 / 0.5)' }} onClick={onClose}>
+  // A portal, so no page wrapper's transform, filter or animation can adopt
+  // this fixed overlay as its own and strand it mid-document or under the nav.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
+         style={{
+           background: 'rgb(24 19 11 / 0.45)',
+           backdropFilter: 'blur(3px)',
+           WebkitBackdropFilter: 'blur(3px)',
+           animation: 'backdrop-in .2s ease both',
+         }}
+         onClick={onClose}>
       <div
-        className={`card fade-up flex max-h-[92vh] w-full flex-col overflow-hidden rounded-b-none sm:rounded-b-2xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}
+        className={`modal-max flex w-full flex-col overflow-hidden rounded-t-3xl border sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}
+        style={{
+          background: 'var(--surface)',
+          borderColor: 'var(--border)',
+          boxShadow: 'var(--shadow-modal)',
+          animation: 'modal-pop .28s cubic-bezier(.16,.84,.44,1) both',
+        }}
+        role="dialog" aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <h2 className="text-base font-bold">{title}</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
+        {/* Phones get a sheet, and a sheet says so with a grab handle. */}
+        <div className="flex justify-center pt-2.5 sm:hidden" aria-hidden="true">
+          <span className="h-1 w-10 rounded-full" style={{ background: 'var(--border-strong)' }} />
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
+          <h2 className="font-display text-lg font-semibold">{title}</h2>
+          <button className="btn btn-ghost btn-icon -mr-1" onClick={onClose} aria-label="Close">
             <Icon name="close" size={18} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto border-t px-4 py-4 sm:px-5"
+             style={{ borderColor: 'var(--border)' }}>
+          {children}
+        </div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex justify-end gap-2 border-t px-4 py-3 sm:px-5"
+               style={{
+                 borderColor: 'var(--border)',
+                 paddingBottom: 'max(.75rem, env(safe-area-inset-bottom, 0px))',
+               }}>
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -255,14 +295,22 @@ export function Field({ label, hint, children }) {
  *
  * The action wraps under the title on a narrow screen rather than squeezing it.
  */
-export function PageHeader({ title, description, action, children }) {
+export function PageHeader({ title, kicker, description, action, children }) {
   return (
     <header className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
+          {kicker && (
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[.08em]"
+               style={{ color: 'var(--accent)' }}>
+              {kicker}
+            </p>
+          )}
+          <h1 className="font-display text-[1.7rem] font-semibold leading-tight sm:text-4xl">
+            {title}
+          </h1>
           {description && (
-            <p className="mt-1 max-w-prose text-sm" style={{ color: 'var(--muted)' }}>
+            <p className="mt-1.5 max-w-prose text-sm" style={{ color: 'var(--muted)' }}>
               {description}
             </p>
           )}
@@ -274,9 +322,9 @@ export function PageHeader({ title, description, action, children }) {
   )
 }
 
-export function Section({ title, action, children, className = '' }) {
+export function Section({ title, action, children, className = '', id }) {
   return (
-    <section className={`space-y-3 ${className}`}>
+    <section id={id} className={`space-y-3 ${className}`}>
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
           {title && (
@@ -295,10 +343,13 @@ export function Section({ title, action, children, className = '' }) {
 
 export function Stat({ label, value, sub, tone }) {
   return (
-    <div className="card px-3.5 py-3">
+    <div className="card px-4 py-3.5">
       <p className="text-2xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums" style={tone ? { color: `var(--${tone})` } : undefined}>{value}</p>
-      {sub && <p className="text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
+      <p className="font-display mt-1 text-[1.75rem] font-semibold leading-none tabular-nums"
+         style={tone ? { color: `var(--${tone})` } : undefined}>
+        {value}
+      </p>
+      {sub && <p className="mt-1.5 text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
     </div>
   )
 }

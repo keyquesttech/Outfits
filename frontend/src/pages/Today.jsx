@@ -13,6 +13,13 @@ const DAYS = ['Today', 'Tomorrow', 'In 2 days', 'In 3 days']
 
 const WARNING_COLOUR = { yellow: '#d9a054', amber: '#e08b2e', red: '#c0392b' }
 
+/* A wash of colour behind the current conditions, so the card reads as the
+   day's mood before any number is read. Kept faint enough for both themes. */
+const CONDITION_TINT = {
+  clear: '#e0982e', cloud: '#8a94a6', rain: '#54779c',
+  snow: '#7fa6c0', storm: '#6f61a8', fog: '#98948a',
+}
+
 function Warnings({ warnings }) {
   const [open, setOpen] = useState(false)
   const list = warnings?.warnings || []
@@ -73,7 +80,8 @@ function Warnings({ warnings }) {
 
 function Metric({ label, value, sub }) {
   return (
-    <div className="rounded-xl px-3 py-2" style={{ background: 'var(--surface-2)' }}>
+    <div className="rounded-xl px-3 py-2.5"
+         style={{ background: 'color-mix(in srgb, var(--surface-2) 72%, transparent)' }}>
       <p className="text-2xs font-semibold uppercase tracking-wide"
          style={{ color: 'var(--muted)' }}>{label}</p>
       <p className="mt-0.5 text-base font-bold tabular-nums leading-none">{value}</p>
@@ -83,7 +91,7 @@ function Metric({ label, value, sub }) {
 }
 
 function WeatherCard({ weather, onRefresh, refreshing }) {
-  if (!weather) return <div className="skeleton h-44 rounded-2xl" />
+  if (!weather) return <div className="skeleton h-48 rounded-2xl" />
   if (!weather.available) {
     return (
       <div className="card px-4 py-4 sm:px-5">
@@ -102,28 +110,32 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
   const c = weather.current || {}
   const t = weather.today || {}
   const days = (weather.daily || []).slice(1)
+  const tint = CONDITION_TINT[c.condition?.group] || CONDITION_TINT.cloud
 
   return (
     <div className="card overflow-hidden">
       {/* Conditions on the left, the rest of the week filling the width on the
           right. On a phone the two stack instead. */}
-      <div className="grid gap-px lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]"
+      <div className="grid gap-px lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
            style={{ background: 'var(--border)' }}>
-        <div className="px-4 py-4 sm:px-5" style={{ background: 'var(--surface)' }}>
-          <div className="flex items-start gap-4">
-            <span className="shrink-0" style={{ color: 'var(--accent)' }}>
-              <WeatherIcon group={c.condition?.group} size={48} />
+        <div className="relative px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
+          <div className="pointer-events-none absolute inset-0" aria-hidden="true"
+               style={{ background:
+                 `radial-gradient(36rem 16rem at -4rem -6rem, color-mix(in srgb, ${tint} 14%, transparent), transparent 72%)` }} />
+          <div className="relative flex items-start gap-4">
+            <span className="mt-1 shrink-0" style={{ color: tint }}>
+              <WeatherIcon group={c.condition?.group} size={52} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span className="text-4xl font-bold leading-none tabular-nums">
+                <span className="font-display text-6xl font-medium leading-none tabular-nums tracking-tight">
                   {Math.round(c.temp_c)}°
                 </span>
                 <span className="text-sm font-medium" style={{ color: 'var(--muted)' }}>
                   feels like {Math.round(c.apparent_c)}°
                 </span>
               </div>
-              <p className="mt-1 truncate text-base font-semibold">{c.condition?.label}</p>
+              <p className="mt-1.5 truncate text-base font-semibold">{c.condition?.label}</p>
               <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
                 {weather.location} · {weather.provider_label}
                 {weather.blend?.member_count > 1 && (
@@ -140,7 +152,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="relative mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Metric label="High / low"
                     value={`${Math.round(t.max_c)}° / ${Math.round(t.min_c)}°`} sub="today" />
             <Metric label="Rain"
@@ -154,17 +166,19 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
         </div>
 
         {days.length > 0 && (
-          <div className="px-4 py-4 sm:px-5" style={{ background: 'var(--surface)' }}>
-            <p className="label mb-2">Next {days.length} days</p>
-            <div className="flex gap-2">
+          <div className="px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
+            <p className="label mb-2.5">Next {days.length} days</p>
+            {/* Scrolls on a phone rather than crushing six days into the width. */}
+            <div className="scroll-x -mx-4 flex gap-2 px-4 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0">
               {days.map((d) => (
                 <div key={d.date}
-                     className="flex flex-1 flex-col items-center gap-1.5 rounded-xl px-1 py-3"
+                     className="flex min-w-[3.9rem] flex-1 flex-col items-center gap-1.5 rounded-xl px-1 py-3"
                      style={{ background: 'var(--surface-2)' }}>
-                  <span className="text-2xs font-semibold" style={{ color: 'var(--muted)' }}>
+                  <span className="text-2xs font-semibold uppercase tracking-wide"
+                        style={{ color: 'var(--muted)' }}>
                     {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
                   </span>
-                  <span style={{ color: 'var(--accent)' }}>
+                  <span style={{ color: CONDITION_TINT[d.condition?.group] || 'var(--accent)' }}>
                     <WeatherIcon group={d.condition?.group} size={20} />
                   </span>
                   <span className="text-sm font-bold tabular-nums">{Math.round(d.max_c)}°</span>
@@ -172,9 +186,9 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
                     {Math.round(d.min_c)}°
                   </span>
                   {d.rain_chance > 20 && (
-                    <span className="text-2xs tabular-nums"
-                          style={{ color: 'var(--accent)' }}>
-                      {Math.round(d.rain_chance)}%
+                    <span className="flex items-center gap-0.5 text-2xs tabular-nums"
+                          style={{ color: CONDITION_TINT.rain }}>
+                      <Icon name="drop" size={9} /> {Math.round(d.rain_chance)}%
                     </span>
                   )}
                 </div>
@@ -187,20 +201,40 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
   )
 }
 
+/** The match score as a small ring — read at a glance, precise on inspection. */
+function ScoreRing({ pct }) {
+  const r = 10.5
+  const c = 2 * Math.PI * r
+  return (
+    <span className="relative inline-flex h-7 w-7 items-center justify-center" title={`${pct}% match`}>
+      <svg viewBox="0 0 28 28" className="absolute inset-0 -rotate-90">
+        <circle cx="14" cy="14" r={r} fill="none" stroke="var(--surface-2)" strokeWidth="3" />
+        <circle cx="14" cy="14" r={r} fill="none" stroke="var(--accent)" strokeWidth="3"
+                strokeLinecap="round" strokeDasharray={c}
+                strokeDashoffset={c * (1 - Math.min(pct, 100) / 100)} />
+      </svg>
+      <span className="text-[.55rem] font-bold tabular-nums">{pct}</span>
+    </span>
+  )
+}
+
 function SuggestionCard({ suggestion, index, onWear, onRate, verdict, busy }) {
   const pct = Math.round(suggestion.score * 100)
   return (
     <div className="card card-link fade-up overflow-hidden"
-         style={{ animationDelay: `${index * 60}ms` }}>
+         style={{ animationDelay: `${index * 70}ms` }}>
       <div className="flex items-center justify-between gap-2 px-4 pt-3.5">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-            {index + 1}
-          </span>
+          <ScoreRing pct={pct} />
           <span className="text-sm font-semibold">
             {index === 0 ? 'Best match' : `Option ${index + 1}`}
           </span>
+          {index === 0 && (
+            <span className="rounded-full px-2 py-0.5 text-2xs font-bold uppercase tracking-wide"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              Top pick
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {/* Every thumb is a training example — this is how the suggestions
@@ -215,21 +249,19 @@ function SuggestionCard({ suggestion, index, onWear, onRate, verdict, busy }) {
             <Icon name="thumbDown" size={16}
                   style={verdict === -1 ? { color: 'var(--bad)' } : undefined} />
           </button>
-          <span className="ml-1 text-xs font-bold tabular-nums" style={{ color: 'var(--muted)' }}>
-            {pct}% match
-          </span>
         </div>
       </div>
 
       {/* Photos and the decision sit side by side once there is room. Stacked,
           the garments took a fifth of a wide card and left the rest empty. */}
-      <div className="gap-4 px-4 py-3 md:flex md:items-start">
-        <div className="scroll-x flex gap-2 md:flex-1">
+      <div className="gap-5 px-4 py-3.5 md:flex md:items-start">
+        <div className="scroll-x -mx-4 flex gap-2.5 px-4 md:mx-0 md:flex-1 md:flex-wrap md:px-0">
           {suggestion.items.map((item) => (
             <Link key={item.id} to={`/wardrobe/${item.id}`}
                   className="w-24 shrink-0" title={item.name}>
-              <div className="aspect-[3/4] overflow-hidden rounded-lg">
-                <ItemPhoto item={item} rounded="rounded-lg" />
+              <div className="aspect-[3/4] overflow-hidden rounded-xl border"
+                   style={{ borderColor: 'var(--border)' }}>
+                <ItemPhoto item={item} rounded="rounded-[.7rem]" />
               </div>
               <p className="mt-1 truncate text-2xs font-medium">{item.name}</p>
             </Link>
@@ -255,6 +287,47 @@ function SuggestionCard({ suggestion, index, onWear, onRate, verdict, busy }) {
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+/** First run: say what the app does in three steps, then point at the camera. */
+function GettingStarted({ message }) {
+  const steps = [
+    { icon: 'camera', title: 'Photograph your wardrobe',
+      text: 'Snap what you own. Colours are read straight off the photo — no AI needed.' },
+    { icon: 'sun', title: 'Get dressed by the weather',
+      text: 'Outfits are scored against the forecast, the occasion and colour harmony.' },
+    { icon: 'sparkle', title: 'It learns you',
+      text: 'Thumb suggestions, rate wears, and it calibrates to your taste and how you feel the cold.' },
+  ]
+  return (
+    <div className="card relative overflow-hidden px-5 py-8 sm:px-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40" aria-hidden="true"
+           style={{ background: 'radial-gradient(30rem 12rem at 30% -5rem, var(--glow), transparent 70%)' }} />
+      <p className="font-display relative text-2xl font-semibold">Start with a few photos</p>
+      <p className="relative mt-1 max-w-lg text-sm" style={{ color: 'var(--muted)' }}>
+        {message || 'Add a handful of things you actually wear and the suggestions begin.'}
+      </p>
+      <div className="relative mt-6 grid gap-4 sm:grid-cols-3">
+        {steps.map((s, i) => (
+          <div key={s.title} className="flex gap-3 sm:block">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:mb-3"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <Icon name={s.icon} size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">{i + 1}. {s.title}</p>
+              <p className="mt-0.5 text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+                {s.text}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Link to="/wardrobe" className="btn btn-primary relative mt-6">
+        <Icon name="camera" size={16} /> Add your first items
+      </Link>
     </div>
   )
 }
@@ -339,10 +412,13 @@ export default function Today() {
   }
 
   const data = suggestions.data
+  const todayLine = new Date().toLocaleDateString(undefined,
+    { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
+        kicker={todayLine}
         title="Today"
         description="What the weather is doing, and what to wear in it."
       />
@@ -408,12 +484,7 @@ export default function Today() {
         )}
 
         {data?.missing_categories?.length > 0 && (
-          <EmptyState
-            icon="hanger"
-            title="Not enough in the wardrobe yet"
-            hint={data.message}
-            action={<Link to="/wardrobe" className="btn btn-primary"><Icon name="plus" size={16} /> Add items</Link>}
-          />
+          <GettingStarted message={data.message} />
         )}
 
         {data?.suggestions?.map((s, i) => (
@@ -438,7 +509,10 @@ export default function Today() {
         <Section title="AI stylist">
           {data.ai.available ? (
             <div className="card px-4 py-4">
-              <p className="text-sm font-semibold">{data.ai.name || 'Stylist pick'}</p>
+              <p className="flex items-center gap-1.5 text-sm font-semibold">
+                <span style={{ color: 'var(--accent)' }}><Icon name="sparkle" size={15} /></span>
+                {data.ai.name || 'Stylist pick'}
+              </p>
               <div className="scroll-x mt-3 flex gap-2">
                 {data.ai.items.map((item) => (
                   <Link key={item.id} to={`/wardrobe/${item.id}`} className="w-24 shrink-0">

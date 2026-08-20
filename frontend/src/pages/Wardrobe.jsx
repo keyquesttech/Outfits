@@ -397,13 +397,14 @@ export default function Wardrobe() {
         }
       />
 
-      <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+      <div className="relative max-w-xl">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2"
               style={{ color: 'var(--muted)' }}>
           <Icon name="search" size={16} />
         </span>
         <input
-          className="input pl-9 pr-9" type="search" placeholder="Search name, brand, material…"
+          className="input rounded-full pl-10 pr-9" type="search"
+          placeholder="Search name, brand, material…"
           value={search} onChange={(e) => setSearch(e.target.value)}
         />
         {search && (
@@ -461,7 +462,7 @@ export default function Wardrobe() {
       <ErrorNote error={error} onRetry={reload} />
 
       {loading && !data ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 8 }).map((_, i) =>
             <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />)}
         </div>

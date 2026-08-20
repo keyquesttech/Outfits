@@ -117,7 +117,7 @@ export default function Insights() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
         title="Insights"
         description="What you actually wear, against what you actually own."
@@ -225,12 +225,11 @@ export default function Insights() {
       </Section>
 
       <div className="grid gap-5 md:grid-cols-2">
-
         <Section title="How you feel the cold">
           <div className="card px-4 py-4">
             {data.comfort.total ? (
               <>
-                <p className="text-3xl font-bold tabular-nums"
+                <p className="font-display text-3xl font-semibold tabular-nums"
                    style={{ color: data.comfort.offset < 0 ? 'var(--warn)' : data.comfort.offset > 0 ? 'var(--accent)' : 'var(--good)' }}>
                   {data.comfort.offset > 0 ? '+' : ''}{data.comfort.offset}
                 </p>
@@ -258,10 +257,9 @@ export default function Insights() {
             )}
           </div>
         </Section>
-      </div>
 
-      {data.taste && (
-        <Section title="Taste">
+        {data.taste && (
+          <Section title="Taste">
           <div className="card px-4 py-4">
             {data.taste.total ? (
               <>
@@ -309,8 +307,9 @@ export default function Insights() {
               </p>
             )}
           </div>
-        </Section>
-      )}
+          </Section>
+        )}
+      </div>
 
       {data.gaps.length > 0 && (
         <Section title="Gaps limiting suggestions">
