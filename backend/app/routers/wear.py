@@ -160,6 +160,7 @@ def log_wear(payload: WearIn):
     )
     _count_wear(item_ids, worn_on)
     _refresh_last_worn(item_ids)
+    recommend.invalidate_pairs()
     updated = load_items(item_ids)
 
     if payload.outfit_id:
@@ -255,6 +256,7 @@ def update_wear(wear_id: int, payload: WearPatch):
                 [(wear_id, i) for i in added])
             _uncount_wear(removed)
             _count_wear(added, fields.get("worn_on") or row["worn_on"])
+            recommend.invalidate_pairs()
     else:
         fields.pop("item_ids", None)
 
@@ -335,6 +337,7 @@ def remove_item_from_wear(wear_id: int, item_id: int):
                (wear_id, item_id))
     _uncount_wear([item_id])
     _refresh_last_worn([item_id])
+    recommend.invalidate_pairs()
 
     remaining = [i for i in ids if i != item_id]
     if not remaining:
@@ -359,6 +362,7 @@ def delete_wear(wear_id: int):
     _uncount_wear(ids)
     db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))
     _refresh_last_worn(ids)
+    recommend.invalidate_pairs()
     if row.get("outfit_id"):
         db.execute("UPDATE outfits SET times_worn = MAX(0, times_worn - 1) WHERE id = ?",
                    (row["outfit_id"],))

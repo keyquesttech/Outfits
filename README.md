@@ -113,6 +113,12 @@ feed's raw "0900 Thu 20 Aug".
 **Set your location** by searching for a place name, from your device's GPS, or by typing
 coordinates.
 
+**Suggestions are exact where they can be.** When pins, occasion tags or season filters
+shrink the candidate space to a few thousand combinations, every one is scored — the
+ranking is arithmetic, not whatever 600 dice rolls landed on. A big open wardrobe still
+samples. And pairs the wear log says you keep wearing together score higher than novel
+ones: worn together twice is a habit, once is an accident.
+
 **It learns your taste.** Thumb a suggestion up or down and that verdict is a training
 example. Two things learn from it: every item in the outfit gains or loses affinity, so a
 piece you keep disliking stops being suggested whatever else it has going for it; and once
@@ -296,6 +302,7 @@ PYTHONPATH=backend .venv/bin/python backend/tests/test_history.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_blend.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_outfit_options.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_taste.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_suggest_engine.py
 ```
 
 ---

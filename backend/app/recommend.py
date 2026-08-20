@@ -8,7 +8,9 @@ right", "too cold") accumulate in `comfort_feedback` and shift the target, so th
 app converges on how *you* experience 12 °C rather than an average body.
 """
 
+import math
 import random
+import time
 
 from . import categories, colours, db, taste
 from .constants import LAYER_ORDER
@@ -43,6 +45,10 @@ EXCLUSIVE_VOCAB = frozenset(
 
 # Verdict values stored in comfort_feedback.
 TOO_COLD, JUST_RIGHT, TOO_HOT = -1, 0, 1
+
+# When the candidate space is at most this big, every combination is scored
+# instead of sampled — exact ranking, and on a Pi 4 still well under a second.
+MAX_EXHAUSTIVE = 5000
 
 # Above this feels-like temperature, scarves and beanies stay in the drawer.
 WARM_ACCESSORY_MAX_C = 15.0
@@ -89,6 +95,47 @@ def record_comfort(apparent_c: float, outfit_warmth: float, verdict: int,
     offset = personal_offset()
     db.set_setting("warmth_offset", f"{offset:.2f}")
     return offset
+
+
+# ---------------------------------------------------------------- pair affinity
+
+# A pair has to have been worn together at least this often to count. Once is
+# an accident; twice is a habit forming.
+MIN_PAIR_WEARS = 2
+# The most the term can add to a score, at saturation.
+PAIR_WEIGHT = 0.06
+PAIR_TTL_SECONDS = 30.0
+
+_pair_cache: dict = {"at": 0.0, "pairs": {}}
+
+
+def pair_counts() -> dict[tuple, int]:
+    """How often each pair of items has been worn together, from the log.
+
+    The same numbers Insights shows as "pairs you keep repeating", fed back
+    into scoring: combinations that keep happening are combinations that work.
+    Cached briefly — the suggester asks thousands of times per request and the
+    log changes a few times a day.
+    """
+    now = time.time()
+    if now - _pair_cache["at"] < PAIR_TTL_SECONDS:
+        return _pair_cache["pairs"]
+    grouped: dict[int, list[int]] = {}
+    for row in db.query("SELECT wear_log_id, item_id FROM wear_log_items"):
+        grouped.setdefault(row["wear_log_id"], []).append(row["item_id"])
+    pairs: dict[tuple, int] = {}
+    for ids in grouped.values():
+        unique = sorted(set(ids))
+        for i, first in enumerate(unique):
+            for second in unique[i + 1:]:
+                pairs[(first, second)] = pairs.get((first, second), 0) + 1
+    _pair_cache.update({"at": now, "pairs": pairs})
+    return pairs
+
+
+def invalidate_pairs() -> None:
+    """Call after the wear log changes, so the next score sees it."""
+    _pair_cache["at"] = 0.0
 
 
 def _rgb(item: dict) -> tuple[int, int, int] | None:
@@ -258,6 +305,24 @@ def score_outfit(items: list[dict], weather: dict, occasion: str | None,
             reasons.append(f"tagged for {occasion}" if tagged == 1
                            else f"{tagged} pieces tagged for {occasion}")
 
+    # Combinations the wear log says keep happening pull the outfit up: worn
+    # together twice or more is evidence the pairing works on the body, which
+    # no amount of colour arithmetic can know.
+    pair_bonus = 0.0
+    pairs = pair_counts()
+    if pairs:
+        ids = sorted(i["id"] for i in items if i.get("id"))
+        strength = 0
+        for i, first in enumerate(ids):
+            for second in ids[i + 1:]:
+                worn_together = pairs.get((first, second), 0)
+                if worn_together >= MIN_PAIR_WEARS:
+                    strength += min(worn_together - 1, 4)
+        if strength:
+            pair_bonus = PAIR_WEIGHT * math.tanh(strength / 6.0)
+            total = min(1.0, total + pair_bonus)
+            reasons.append("a pairing you keep wearing")
+
     breakdown = {
         "warmth": round(warmth_score, 3),
         "rain": round(rain_score, 3),
@@ -266,6 +331,7 @@ def score_outfit(items: list[dict], weather: dict, occasion: str | None,
         "colour": round(harmony_score, 3),
         "freshness": round(freshness, 3),
         "occasion_bonus": round(occasion_bonus, 3),
+        "pairs": round(pair_bonus, 3),
     }
     # Liked and disliked suggestions leave a mark; this is where it lands.
     total, taste_reasons = taste.adjust(total, items, breakdown)
@@ -380,11 +446,14 @@ def _pools(seasons: list[str] | None,
 def suggest(weather: dict, occasion: str | None = None, count: int = 3,
             seasons: list[str] | None = None,
             samples: int = 600, pinned: list[int] | None = None) -> dict:
-    """Sample candidate outfits, score them, return the best distinct few.
+    """Score candidate outfits and return the best distinct few.
 
-    Sampling beats enumerating: a 200-item wardrobe has millions of combinations,
-    and 600 samples on a Pi 4 takes a few milliseconds while still finding the
-    good ones because the pools are small per layer.
+    When the candidate space is small enough — and pins, occasion tags and
+    season filters shrink it fast — every combination is scored, so the ranking
+    is exact rather than whatever 600 dice rolls happened to land on. A big
+    open wardrobe still samples: a 200-item wardrobe has millions of
+    combinations, and the pools are small enough per layer that sampling finds
+    the good ones.
     """
     tag_map = tags_by_item()
     pools = _pools(seasons, occasion, tag_map)
@@ -451,63 +520,120 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     # than on how far the outfit sits below its warmth target.
     warm_ok = apparent is None or apparent <= WARM_ACCESSORY_MAX_C
 
+    # Pinned accessories and jewellery ride along with every candidate, so the
+    # optional slots draw from what is not already pinned.
+    stack_pins = [i for layer, options in pinned_by_layer.items()
+                  if layer in stack_layers for i in options]
+    stack_ids = {i["id"] for i in stack_pins}
+    acc_pool = [a for a in accessories if a["id"] not in stack_ids
+                and (int(a.get("warmth") or 0) <= 1 or warm_ok)]
+    jew_pool = [j for j in jewellery if j["id"] not in stack_ids]
+
+    def effective(pool, layer):
+        return pinned_by_layer.get(layer) or pool
+
+    e_bottoms = effective(bottoms, "bottom")
+    e_shoes = effective(shoes, "footwear")
+    pinned_tops = pinned_by_layer.get("top")
+    e_top_norm = [i for i in (pinned_tops or tops) if i.get("category") not in one_piece]
+    e_one = ([i for i in pinned_tops if i.get("category") in one_piece]
+             if pinned_tops else one_pieces)
+
+    cores: list[list[dict]] = [[t, b] for t in e_top_norm for b in e_bottoms]
+    if e_one and "bottom" not in pinned_by_layer:
+        cores += [[op] for op in e_one]
+
+    shoe_opts: list = e_shoes or [None]
+    mid_opts: list = (pinned_by_layer["mid"] if "mid" in pinned_by_layer
+                      else [None] + mids)
+    outer_opts: list = (pinned_by_layer["outer"] if "outer" in pinned_by_layer
+                        else [None] + outers)
+    acc_opts: list = [None] + acc_pool
+    jew_opts: list = [None] + jew_pool
+
+    space = (len(cores) * len(shoe_opts) * len(mid_opts) * len(outer_opts)
+             * len(acc_opts) * len(jew_opts))
+    method = "exhaustive" if 0 < space <= MAX_EXHAUSTIVE else "sampled"
+
+    def exhaustive():
+        """Every combination, once. No dice, no duplicates, no missed corner."""
+        for core in cores:
+            bottom = next((c for c in core if c.get("layer") == "bottom"), None)
+            # A belt is pointless with elasticated joggers, and looks wrong
+            # with a dress, so those combinations are simply not candidates.
+            belt_ok = bottom is not None and bottom.get("takes_belt", True)
+            for shoe in shoe_opts:
+                for mid in mid_opts:
+                    for outer in outer_opts:
+                        for acc in acc_opts:
+                            if (acc is not None and acc.get("category") == "belt"
+                                    and not belt_ok):
+                                continue
+                            for jew in jew_opts:
+                                chosen = list(core)
+                                for extra in (shoe, mid, outer, acc, jew):
+                                    if extra is not None:
+                                        chosen.append(extra)
+                                yield chosen + stack_pins
+
+    def sampled():
+        for _ in range(samples):
+            chosen: list[dict] = []
+            if one_pieces and not bottoms and "bottom" not in pinned_by_layer:
+                use_one_piece = True
+            elif one_pieces and "bottom" not in pinned_layers:
+                use_one_piece = random.random() < 0.25
+            else:
+                use_one_piece = False
+
+            if use_one_piece:
+                chosen.append(pick(one_pieces, "top") or random.choice(one_pieces))
+            else:
+                top = pick(tops, "top")
+                bottom = pick(bottoms, "bottom")
+                if not top or not bottom:
+                    continue
+                chosen += [top, bottom]
+
+            shoe = pick(shoes, "footwear")
+            if shoe:
+                chosen.append(shoe)
+
+            current = outfit_warmth(chosen)
+            # A pinned mid or outer is part of the base, so it always joins; the
+            # warmth arithmetic only decides for the unpinned wardrobe.
+            if "mid" in pinned_by_layer or (mids and (current < target - 3 or random.random() < 0.3)):
+                mid = pick(mids, "mid")
+                if mid:
+                    chosen.append(mid)
+                    current = outfit_warmth(chosen)
+            if "outer" in pinned_by_layer or (outers and (current < target - 4 or random.random() < 0.2)):
+                outer = pick(outers, "outer")
+                if outer:
+                    chosen.append(outer)
+            if acc_pool and random.random() < 0.45:
+                pool = acc_pool
+                belted = next((c for c in chosen if c.get("layer") == "bottom"), None)
+                if not belted or not belted.get("takes_belt", True):
+                    pool = [a for a in pool if a.get("category") != "belt"]
+                if pool:
+                    chosen.append(random.choice(pool))
+            if jew_pool and random.random() < 0.4:
+                chosen.append(random.choice(jew_pool))
+
+            # Honour the pins the slots above did not cover: stacking layers
+            # take every pinned item, choice layers exactly one of the options.
+            chosen_ids = {c["id"] for c in chosen}
+            for layer, options in pinned_by_layer.items():
+                if layer in stack_layers:
+                    chosen += [i for i in options if i["id"] not in chosen_ids]
+                elif not any(c["layer"] == layer for c in chosen):
+                    chosen.append(random.choice(options))
+            yield chosen
+
     seen: set[tuple] = set()
     scored: list[dict] = []
-    for _ in range(samples):
-        chosen: list[dict] = []
-        if one_pieces and not bottoms and "bottom" not in pinned_by_layer:
-            use_one_piece = True
-        elif one_pieces and "bottom" not in pinned_layers:
-            use_one_piece = random.random() < 0.25
-        else:
-            use_one_piece = False
-
-        if use_one_piece:
-            chosen.append(pick(one_pieces, "top") or random.choice(one_pieces))
-        else:
-            top = pick(tops, "top")
-            bottom = pick(bottoms, "bottom")
-            if not top or not bottom:
-                continue
-            chosen += [top, bottom]
-
-        shoe = pick(shoes, "footwear")
-        if shoe:
-            chosen.append(shoe)
-
-        current = outfit_warmth(chosen)
-        # A pinned mid or outer is part of the base, so it always joins; the
-        # warmth arithmetic only decides for the unpinned wardrobe.
-        if "mid" in pinned_by_layer or (mids and (current < target - 3 or random.random() < 0.3)):
-            mid = pick(mids, "mid")
-            if mid:
-                chosen.append(mid)
-                current = outfit_warmth(chosen)
-        if "outer" in pinned_by_layer or (outers and (current < target - 4 or random.random() < 0.2)):
-            outer = pick(outers, "outer")
-            if outer:
-                chosen.append(outer)
-        if accessories and random.random() < 0.45:
-            pool = [a for a in accessories if int(a.get("warmth") or 0) <= 1 or warm_ok]
-            # A belt is pointless with elasticated joggers, and looks wrong with a
-            # dress, so it only joins an outfit whose bottom half accepts one.
-            belted = next((c for c in chosen if c.get("layer") == "bottom"), None)
-            if not belted or not belted.get("takes_belt", True):
-                pool = [a for a in pool if a.get("category") != "belt"]
-            if pool:
-                chosen.append(random.choice(pool))
-        if jewellery and random.random() < 0.4:
-            chosen.append(random.choice(jewellery))
-
-        # Honour the pins the slots above did not cover: stacking layers take
-        # every pinned item, choice layers take exactly one of the options.
-        chosen_ids = {c["id"] for c in chosen}
-        for layer, options in pinned_by_layer.items():
-            if layer in stack_layers:
-                chosen += [i for i in options if i["id"] not in chosen_ids]
-            elif not any(c["layer"] == layer for c in chosen):
-                chosen.append(random.choice(options))
-
+    for chosen in (exhaustive() if method == "exhaustive" else sampled()):
         key = tuple(sorted(c["id"] for c in chosen))
         if key in seen:
             continue
@@ -531,6 +657,7 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     return {
         "suggestions": picked,
         "considered": len(scored),
+        "method": method,
         "target_warmth": round(target, 1),
         "personal_offset": round(offset, 2),
         "missing_categories": [],
