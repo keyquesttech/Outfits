@@ -423,10 +423,20 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
             "message": "Add at least one " + ", ".join(missing) + " to get suggestions.",
         }
 
+    # A base can hold options — two bottoms saved as alternatives. Pinning must
+    # mean "one of these per layer", not "all of them": a suggestion wearing
+    # both pairs of pants is not an outfit. Accessories and jewellery stack, so
+    # every pinned one of those rides along.
+    pinned_by_layer: dict[str, list[dict]] = {}
+    for item in pinned_items:
+        pinned_by_layer.setdefault(item["layer"], []).append(item)
+    stack_layers = {"accessory", "jewellery", "base"}
+
     def pick(pool, layer):
-        for item in pinned_items:
-            if item["layer"] == layer:
-                return item
+        options = pinned_by_layer.get(layer)
+        if options:
+            # Sampling explores the base's options; scoring settles which wins.
+            return random.choice(options)
         return random.choice(pool) if pool else None
 
     # A scarf or a beanie is insulation, not decoration. No amount of arithmetic
@@ -438,7 +448,7 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     scored: list[dict] = []
     for _ in range(samples):
         chosen: list[dict] = []
-        if one_pieces and not bottoms:
+        if one_pieces and not bottoms and "bottom" not in pinned_by_layer:
             use_one_piece = True
         elif one_pieces and "bottom" not in pinned_layers:
             use_one_piece = random.random() < 0.25
@@ -459,12 +469,14 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
             chosen.append(shoe)
 
         current = outfit_warmth(chosen)
-        if mids and (current < target - 3 or random.random() < 0.3):
+        # A pinned mid or outer is part of the base, so it always joins; the
+        # warmth arithmetic only decides for the unpinned wardrobe.
+        if "mid" in pinned_by_layer or (mids and (current < target - 3 or random.random() < 0.3)):
             mid = pick(mids, "mid")
             if mid:
                 chosen.append(mid)
                 current = outfit_warmth(chosen)
-        if outers and (current < target - 4 or random.random() < 0.2):
+        if "outer" in pinned_by_layer or (outers and (current < target - 4 or random.random() < 0.2)):
             outer = pick(outers, "outer")
             if outer:
                 chosen.append(outer)
@@ -480,9 +492,14 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
         if jewellery and random.random() < 0.4:
             chosen.append(random.choice(jewellery))
 
-        for item in pinned_items:  # honour pins that no layer slot covered
-            if item["id"] not in {c["id"] for c in chosen}:
-                chosen.append(item)
+        # Honour the pins the slots above did not cover: stacking layers take
+        # every pinned item, choice layers take exactly one of the options.
+        chosen_ids = {c["id"] for c in chosen}
+        for layer, options in pinned_by_layer.items():
+            if layer in stack_layers:
+                chosen += [i for i in options if i["id"] not in chosen_ids]
+            elif not any(c["layer"] == layer for c in chosen):
+                chosen.append(random.choice(options))
 
         key = tuple(sorted(c["id"] for c in chosen))
         if key in seen:

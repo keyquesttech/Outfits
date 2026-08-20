@@ -341,7 +341,7 @@ export default function Today() {
             ))}
             {base && (
               <span className="shrink-0 text-xs" style={{ color: 'var(--muted)' }}>
-                — every suggestion includes {base.items.length} pinned piece{base.items.length === 1 ? '' : 's'}
+                — suggestions are built around it, one piece per layer where it holds options
               </span>
             )}
           </div>
