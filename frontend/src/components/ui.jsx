@@ -31,6 +31,7 @@ const paths = {
   rotateLeft: 'M3 5v6h6M3.5 10.5a9 9 0 1 1 1.4 6',
   rotateRight: 'M21 5v6h-6M20.5 10.5a9 9 0 1 0-1.4 6',
   crop: 'M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14',
+  history: 'M21 12a9 9 0 1 1-3.1-6.8 M21 3v6h-6 M12 8v4l3 2',
 }
 
 export function Icon({ name, size = 20, className = '', ...rest }) {

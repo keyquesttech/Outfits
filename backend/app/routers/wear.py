@@ -113,6 +113,40 @@ def rate_comfort(wear_id: int, verdict: int):
     return {"wear_id": wear_id, "verdict": verdict, "personal_offset": round(offset, 2)}
 
 
+@router.delete("/{wear_id}/items/{item_id}")
+def remove_item_from_wear(wear_id: int, item_id: int):
+    """Take one garment out of a logged wear, keeping the rest of it.
+
+    For the common correction: the outfit was right except you did not actually
+    put the belt on. Only that item's counters go back — and if it was the last
+    one left, the entry itself goes, because a wear with nothing in it is not a
+    record of anything.
+    """
+    row = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))
+    if not row:
+        raise HTTPException(404, "Wear log not found")
+    ids = [r["item_id"] for r in db.query(
+        "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)
+    )]
+    if item_id not in ids:
+        raise HTTPException(404, "That item is not in this wear")
+
+    db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ? AND item_id = ?",
+               (wear_id, item_id))
+    wash.undo_wear([item_id])
+
+    remaining = [i for i in ids if i != item_id]
+    if not remaining:
+        return delete_wear(wear_id)
+
+    # The comfort rating was given for a warmer or cooler outfit than what is
+    # left, and the calibration reads that number. Keep it honest.
+    db.execute("UPDATE comfort_feedback SET outfit_warmth = ? WHERE wear_log_id = ?",
+               (recommend.outfit_warmth(load_items(remaining)), wear_id))
+    return {"wear_id": wear_id, "removed": item_id,
+            "wear": _hydrate(db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,)))}
+
+
 @router.delete("/{wear_id}")
 def delete_wear(wear_id: int):
     row = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))

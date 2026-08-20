@@ -82,6 +82,7 @@ export const api = {
   logWear: (body) => post('/api/wear', body),
   rateComfort: (id, verdict) => post(`/api/wear/${id}/comfort?verdict=${verdict}`),
   deleteWear: (id) => del(`/api/wear/${id}`),
+  removeWearItem: (wearId, itemId) => del(`/api/wear/${wearId}/items/${itemId}`),
 
   laundry: () => get('/api/laundry/plan'),
   wash: (body) => post('/api/laundry/wash', body),

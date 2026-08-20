@@ -9,6 +9,7 @@ import Wardrobe from './pages/Wardrobe.jsx'
 import ItemDetail from './pages/ItemDetail.jsx'
 import Outfits from './pages/Outfits.jsx'
 import Laundry from './pages/Laundry.jsx'
+import History from './pages/History.jsx'
 import Insights from './pages/Insights.jsx'
 import Settings from './pages/Settings.jsx'
 
@@ -20,6 +21,7 @@ const NAV = [
   { to: '/wardrobe', label: 'Wardrobe', icon: 'hanger' },
   { to: '/outfits', label: 'Outfits', icon: 'layers' },
   { to: '/laundry', label: 'Laundry', icon: 'drop' },
+  { to: '/history', label: 'History', icon: 'history' },
   { to: '/insights', label: 'Insights', icon: 'chart' },
 ]
 
@@ -123,6 +125,7 @@ export default function App() {
             <Route path="/wardrobe/:id" element={<ItemDetail />} />
             <Route path="/outfits" element={<Outfits />} />
             <Route path="/laundry" element={<Laundry />} />
+            <Route path="/history" element={<History />} />
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
