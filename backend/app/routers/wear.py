@@ -85,6 +85,12 @@ def log_wear(payload: WearIn):
         raise HTTPException(400, "Log at least one item, or an outfit that has items")
 
     worn_on = payload.worn_on or date.today().isoformat()
+    try:
+        date.fromisoformat(worn_on)
+    except ValueError:
+        raise HTTPException(400, "worn_on must be a date like 2026-08-19") from None
+    if worn_on > date.today().isoformat():
+        raise HTTPException(400, "That day has not happened yet")
     temp_c, apparent_c = payload.temp_c, payload.apparent_c
     condition = payload.condition
 

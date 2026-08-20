@@ -142,15 +142,22 @@ def _ai_suggestion(conditions: dict, payload: SuggestIn) -> dict:
     clause = "SELECT * FROM items WHERE is_active = 1"
     if payload.exclude_dirty:
         clause += " AND status NOT IN ('needs_wash','in_wash')"
+    tag_map = recommend.tags_by_item()
     wardrobe = []
     for row in db.query(clause):
         item = item_out(row)
-        wardrobe.append({
+        entry = {
             "id": item["id"], "name": item["name"], "category": item["category"],
             "layer": item["layer"], "colour": item.get("colour_primary"),
             "warmth": item.get("warmth"), "formality": item.get("formality"),
             "waterproof": item.get("water_proof"),
-        })
+        }
+        # The occasions the wearer filed this under — worth more to a stylist
+        # than another number.
+        tags = sorted(tag_map.get(item["id"], set()))
+        if tags:
+            entry["tags"] = tags
+        wardrobe.append(entry)
     if not wardrobe:
         return {"available": False, "reason": "Wardrobe is empty"}
 
@@ -190,6 +197,8 @@ def _ai_suggestion(conditions: dict, payload: SuggestIn) -> dict:
         return {"available": False, "reason": "Provider returned nothing"}
 
     items = load_items([int(i) for i in raw.get("item_ids", [])])
+    for item in items:
+        item["tags"] = sorted(tag_map.get(item["id"], set()))
     scored = recommend.score_outfit(items, conditions, payload.occasion,
                                     recommend.personal_offset()) if items else {}
     return {

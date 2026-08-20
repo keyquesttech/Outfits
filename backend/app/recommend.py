@@ -21,6 +21,26 @@ OCCASION_FORMALITY = {
     "work": 3.5, "smart": 4, "date": 4, "party": 4, "formal": 5, "wedding": 5,
 }
 
+# What each occasion answers to in an item's tags. Tagging trousers "gym, date"
+# commits them: they are preferred for those occasions and left out of the rest.
+# An untagged item stays available everywhere and is judged on formality alone.
+OCCASION_TAGS = {
+    "everyday": {"everyday", "casual"},
+    "casual": {"casual", "everyday"},
+    "work": {"work", "office"},
+    "smart": {"smart"},
+    "sport": {"sport", "gym"},
+    "date": {"date", "party", "going out"},
+    "party": {"date", "party", "going out"},
+    "formal": {"formal", "wedding"},
+    "wedding": {"formal", "wedding"},
+    "lounge": {"lounge"},
+}
+# "smart" describes how a garment looks, not where it goes — a smart shirt is
+# right for work too. It boosts, but never commits an item away from anywhere.
+EXCLUSIVE_VOCAB = frozenset(
+    t for tags in OCCASION_TAGS.values() for t in tags) - {"smart"}
+
 # Verdict values stored in comfort_feedback.
 TOO_COLD, JUST_RIGHT, TOO_HOT = -1, 0, 1
 
@@ -213,6 +233,20 @@ def score_outfit(items: list[dict], weather: dict, occasion: str | None,
         + 0.14 * harmony_score
         + 0.06 * freshness
     )
+
+    # Explicit taste outranks inference: pieces the wearer filed under this
+    # occasion pull the outfit up, over anything the formality average guessed.
+    occasion_bonus = 0.0
+    if occasion:
+        wanted = OCCASION_TAGS.get(occasion.lower(), set())
+        tagged = sum(1 for i in items
+                     if wanted & {str(t).lower() for t in (i.get("tags") or [])})
+        if tagged:
+            occasion_bonus = 0.05 * min(tagged, 2)
+            total = min(1.0, total + occasion_bonus)
+            reasons.append(f"tagged for {occasion}" if tagged == 1
+                           else f"{tagged} pieces tagged for {occasion}")
+
     return {
         "score": round(total, 4),
         "warmth": warmth,
@@ -225,22 +259,46 @@ def score_outfit(items: list[dict], weather: dict, occasion: str | None,
             "formality": round(formality_score, 3),
             "colour": round(harmony_score, 3),
             "freshness": round(freshness, 3),
+            "occasion_bonus": round(occasion_bonus, 3),
         },
     }
 
 
-def _pools(exclude_dirty: bool, seasons: list[str] | None) -> dict[str, list[dict]]:
+def tags_by_item() -> dict[int, set[str]]:
+    out: dict[int, set[str]] = {}
+    for r in db.query(
+        "SELECT item_tags.item_id AS item_id, tags.name AS name "
+        "FROM item_tags JOIN tags ON tags.id = item_tags.tag_id"
+    ):
+        out.setdefault(r["item_id"], set()).add(str(r["name"]).lower())
+    return out
+
+
+def _pools(exclude_dirty: bool, seasons: list[str] | None,
+           occasion: str | None = None,
+           tag_map: dict[int, set[str]] | None = None) -> dict[str, list[dict]]:
     clause = "SELECT * FROM items WHERE is_active = 1"
     params: list = []
     if exclude_dirty:
         clause += " AND status NOT IN ('needs_wash','in_wash')"
     rows = db.query(clause, tuple(params))
     catalogue = categories.by_key()
+    tag_map = tag_map or {}
+    wanted = OCCASION_TAGS.get((occasion or "").lower(), set())
     pools: dict[str, list[dict]] = {layer: [] for layer in LAYER_ORDER}
     for row in rows:
         item = item_out(row, catalogue)
+        item_tags = tag_map.get(item["id"], set())
+        item["tags"] = sorted(item_tags)
         if seasons and item["seasons"] and not set(item["seasons"]) & set(seasons):
             continue
+        if wanted:
+            # An item tagged with occasions belongs to those occasions. Gym
+            # joggers do not turn up in a date outfit; an untagged tee still
+            # turns up everywhere.
+            committed = item_tags & EXCLUSIVE_VOCAB
+            if committed and not (committed & wanted):
+                continue
         pools.setdefault(item["layer"], []).append(item)
     return pools
 
@@ -254,7 +312,8 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     and 600 samples on a Pi 4 takes a few milliseconds while still finding the
     good ones because the pools are small per layer.
     """
-    pools = _pools(exclude_dirty, seasons)
+    tag_map = tags_by_item()
+    pools = _pools(exclude_dirty, seasons, occasion, tag_map)
     offset = personal_offset()
     apparent = weather.get("apparent_c")
     target = target_warmth(apparent) + offset if apparent is not None else 18
@@ -263,6 +322,8 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     if pinned:
         from .serializers import load_items
         pinned_items = load_items(pinned)
+        for item in pinned_items:
+            item["tags"] = sorted(tag_map.get(item["id"], set()))
     pinned_layers = {i["layer"] for i in pinned_items}
 
     # A dress or a pair of pyjamas covers top and bottom on its own, so it is a

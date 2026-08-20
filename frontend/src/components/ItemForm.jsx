@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import ColourField from './ColourField.jsx'
@@ -32,6 +32,68 @@ function TextField({ label, hint, value, onChange, options = [], capitalise = tr
         <datalist id={listId}>
           {options.map((o) => <option key={o} value={o} />)}
         </datalist>
+      )}
+    </Field>
+  )
+}
+
+/**
+ * Free-text input with the app's own dropdown of known values.
+ *
+ * Brand, material and subcategory used the browser's datalist, which renders
+ * differently in every browser and nothing like the Category select beside
+ * them. This is the same affordance as the rest of the form: a styled panel of
+ * everything typed before, filtered as you type, that still accepts a value it
+ * has never seen.
+ */
+function ComboField({ label, hint, value, onChange, options = [], placeholder }) {
+  const [open, setOpen] = useState(false)
+  const query = String(value || '').trim().toLowerCase()
+  // Filter while typing, but a field already holding a complete known value is
+  // being browsed, not typed — show everything, with the current one marked.
+  const settled = !query || options.some((o) => o.toLowerCase() === query)
+  const shown = settled
+    ? options
+    : options.filter((o) => o.toLowerCase().includes(query))
+  const pick = (v) => { onChange(v); setOpen(false) }
+
+  return (
+    <Field label={label} hint={hint}>
+      <div className="relative">
+        <input
+          className="input pr-9" value={value} placeholder={placeholder}
+          autoCapitalize="words" autoComplete="off"
+          onChange={(e) => { onChange(autoCapitalise(e.target.value)); setOpen(true) }}
+        />
+        {options.length > 0 && (
+          <button
+            type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+            className="absolute right-1 top-1/2 -translate-y-1/2 rounded-lg p-1.5"
+            style={{ color: 'var(--muted)' }}
+            aria-label={`Show known values for ${label}`}
+          >
+            <Icon name="chevron" size={16}
+                  style={{ transform: open ? 'rotate(180deg)' : 'none' }} />
+          </button>
+        )}
+      </div>
+      {open && shown.length > 0 && (
+        <div className="card mt-1.5 max-h-48 overflow-y-auto p-1">
+          {shown.map((o) => {
+            const on = o.toLowerCase() === query
+            return (
+              <button
+                key={o} type="button" onClick={() => pick(o)}
+                className="flex w-full items-center rounded-lg px-2.5 py-1.5 text-left text-sm"
+                style={on
+                  ? { background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 600 }
+                  : undefined}
+              >
+                {o}
+              </button>
+            )
+          })}
+        </div>
       )}
     </Field>
   )
@@ -232,16 +294,16 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
           empty="Nothing else"
         />
 
-        <TextField
-          label="Subcategory" value={form.subcategory} options={known.subcategory}
+        <ComboField
+          label="Subcategory" value={form.subcategory} options={known.subcategory || []}
           onChange={(v) => setForm({ ...form, subcategory: v })} placeholder="Crew Neck"
         />
-        <TextField
-          label="Brand" value={form.brand} options={known.brand}
+        <ComboField
+          label="Brand" value={form.brand} options={known.brand || []}
           onChange={(v) => setForm({ ...form, brand: v })}
         />
-        <TextField
-          label="Material" value={form.material} options={known.material}
+        <ComboField
+          label="Material" value={form.material} options={known.material || []}
           onChange={(v) => setForm({ ...form, material: v })} placeholder="Merino Wool"
         />
       </div>
@@ -349,7 +411,10 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         </Chip>
       </div>
 
-      <Field label="Tags" hint="Tap the common ones, or type your own separated by commas.">
+      <Field
+        label="Tags"
+        hint="Occasion tags do real work: tag trousers gym, date and the builder uses them for those occasions and leaves them out of the rest. Untagged items stay available everywhere."
+      >
         <div className="rail mb-2">
           {(meta.suggested_tags || []).map((t) => (
             <Chip key={t} active={tags.includes(t)} onClick={() => toggleTag(t)}>

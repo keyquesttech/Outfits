@@ -4,8 +4,8 @@ import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  EmptyState, ErrorNote, Field, Icon, PageHeader, Section, Spinner, titleCase,
-  useConfirm, useToast,
+  Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Section, Spinner,
+  titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
 /**
@@ -91,6 +91,150 @@ function Details({ wear, busy, onSave }) {
         </div>
       )}
     </div>
+  )
+}
+
+const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
+
+/**
+ * Log an outfit worn on a past day.
+ *
+ * This is how the calibration gets trained retroactively: pick the pieces, pick
+ * the day, and the wear is recorded against the weather that day actually had —
+ * looked up from the historical record, not stamped with this afternoon's.
+ */
+function AddPastOutfit({ open, onClose, onDone }) {
+  const toast = useToast()
+  const [day, setDay] = useState(TODAY())
+  const [occasion, setOccasion] = useState('everyday')
+  const [notes, setNotes] = useState('')
+  const [selected, setSelected] = useState([])
+  const [query, setQuery] = useState('')
+  const [preview, setPreview] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const wardrobe = useAsync(() => api.items({ limit: 500 }), [])
+
+  useEffect(() => {
+    let live = true
+    if (!day || day === TODAY()) { setPreview(null); return }
+    api.weatherOn(day)
+      .then((w) => { if (live) setPreview(w) })
+      .catch(() => { if (live) setPreview(null) })
+    return () => { live = false }
+  }, [day])
+
+  const items = wardrobe.data?.items || []
+  const needle = query.trim().toLowerCase()
+  const shown = needle
+    ? items.filter((i) =>
+        `${i.name} ${i.brand || ''} ${i.subcategory || ''}`.toLowerCase().includes(needle))
+    : items
+  const toggle = (id) =>
+    setSelected((sel) => sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
+
+  const save = async () => {
+    setBusy(true)
+    try {
+      const res = await api.logWear({
+        item_ids: selected, worn_on: day, occasion,
+        notes: notes.trim() || undefined,
+      })
+      const felt = res.wear.apparent_c
+      toast(felt != null
+        ? `Logged for ${res.wear.worn_on} — that day felt like ${Math.round(felt)} °C.`
+        : `Logged for ${res.wear.worn_on}. No weather record for that day.`, 'success')
+      onDone()
+      onClose()
+    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
+  }
+
+  return (
+    <Modal
+      open={open} onClose={busy ? () => {} : onClose} wide title="Log a past outfit"
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={save}
+                  disabled={busy || !selected.length || !day}>
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
+            Log {selected.length || ''} item{selected.length === 1 ? '' : 's'}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+          <Field label="Worn on">
+            <input className="input !w-auto" type="date" value={day} max={TODAY()}
+                   onChange={(e) => setDay(e.target.value)} />
+          </Field>
+          <p className="pb-2 text-xs" style={{ color: 'var(--muted)' }}>
+            {day === TODAY()
+              ? "Today — the live weather will be attached."
+              : preview
+                ? preview.available
+                  ? `That day: ${preview.condition?.label || '—'}, felt like ${Math.round(preview.apparent_c)} °C`
+                  : preview.reason
+                : 'Looking that day up…'}
+          </p>
+        </div>
+
+        <Field label="Occasion">
+          <div className="rail">
+            {OCCASIONS.map((o) => (
+              <Chip key={o} active={occasion === o} onClick={() => setOccasion(o)}>
+                {titleCase(o)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="What was worn">
+          <input className="input mb-2" placeholder="Filter by name, brand or type…"
+                 value={query} onChange={(e) => setQuery(e.target.value)} />
+          {wardrobe.loading && !wardrobe.data ? (
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, i) =>
+                <div key={i} className="skeleton aspect-[3/4] rounded-lg" />)}
+            </div>
+          ) : (
+            <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-5">
+              {shown.map((i) => {
+                const on = selected.includes(i.id)
+                return (
+                  <button key={i.id} type="button" onClick={() => toggle(i.id)}
+                          className="text-left" title={i.name}>
+                    <div className="relative aspect-[3/4] overflow-hidden rounded-lg"
+                         style={on ? { boxShadow: '0 0 0 2px var(--accent)' } : undefined}>
+                      <ItemPhoto item={i} rounded="rounded-lg" />
+                      {on && (
+                        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2"
+                              style={{ background: 'var(--accent)', '--tw-ring-color': 'var(--surface)' }}>
+                          <Icon name="check" size={12} />
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 truncate text-2xs font-medium">{i.name}</p>
+                  </button>
+                )
+              })}
+              {!shown.length && (
+                <p className="col-span-full py-4 text-center text-sm"
+                   style={{ color: 'var(--muted)' }}>
+                  Nothing matches.
+                </p>
+              )}
+            </div>
+          )}
+        </Field>
+
+        <Field label="Notes" hint="Anything worth remembering. The AI stylist reads these.">
+          <textarea className="textarea" rows={2} value={notes}
+                    placeholder="Rained on the way back · this worked well"
+                    onChange={(e) => setNotes(e.target.value)} />
+        </Field>
+      </div>
+    </Modal>
   )
 }
 
@@ -263,6 +407,7 @@ export default function History() {
   const confirm = useConfirm()
   const [limit, setLimit] = useState(60)
   const [busy, setBusy] = useState(null)
+  const [adding, setAdding] = useState(false)
   const { data, loading, error, reload } = useAsync(() => api.wears({ limit }), [limit])
 
   const wears = data?.wears || []
@@ -324,6 +469,11 @@ export default function History() {
       <PageHeader
         title="History"
         description="Everything logged as worn. Deleting an entry puts the wear counters back, so a mis-tap does not leave a shirt waiting to be washed."
+        action={
+          <button className="btn btn-primary" onClick={() => setAdding(true)}>
+            <Icon name="plus" size={16} /> Log a past outfit
+          </button>
+        }
       />
 
       <ErrorNote error={error} onRetry={reload} />
@@ -361,6 +511,10 @@ export default function History() {
             </button>
           )}
         </>
+      )}
+
+      {adding && (
+        <AddPastOutfit open onClose={() => setAdding(false)} onDone={() => reload(true)} />
       )}
     </div>
   )

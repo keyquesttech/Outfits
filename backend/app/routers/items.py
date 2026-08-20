@@ -204,6 +204,7 @@ def _hydrate(row: dict) -> dict:
 @router.get("/items")
 def list_items(
     category: str | None = None,
+    subcategory: str | None = None,
     status: str | None = None,
     layer: str | None = None,
     colour: str | None = None,
@@ -234,6 +235,10 @@ def list_items(
             "WHERE ic.item_id = items.id AND ic.category = ?))"
         )
         params += [category, category]
+    if subcategory:
+        # Free text, so match by what a person would call the same thing.
+        where.append("LOWER(TRIM(items.subcategory)) = ?")
+        params.append(subcategory.strip().lower())
     if status:
         where.append("items.status = ?")
         params.append(status)

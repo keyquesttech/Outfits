@@ -132,7 +132,14 @@ plus stars — and the comfort verdict is what shifts the warmth calibration tow
 *you* feel a temperature. Entries can be deleted, which puts the wear counters back, or
 have a single garment taken out of them.
 
-**Back-date what you forgot to log.** Change an entry's date and the app looks up the
+**Occasion tags steer the builder.** Tag trousers "gym, date" and they are preferred for
+those occasions and left out of the rest; an untagged item stays available everywhere and
+is judged on formality alone. "smart" and "comfy" describe a garment rather than commit it,
+so they boost without excluding. The wardrobe also filters by subcategory — Tabis, Boots,
+Long Sleeve — with counts, like everything else.
+
+**Back-date what you forgot to log.** "Log a past outfit" on the History page picks the
+pieces, the day and the occasion in one go.  Change an entry's date and the app looks up the
 weather that day actually had — Open-Meteo's archive, free and keyless, reaching back
 decades — rather than stamping this afternoon's temperature on last Tuesday. Days are
 cached, and a whole window is fetched at once, so filling in a week costs one request. Any

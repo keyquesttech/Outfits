@@ -327,6 +327,7 @@ export default function Wardrobe() {
   const [search, setSearch] = useState('')
   const q = useDebounced(search, 280)
   const [category, setCategory] = useState('')
+  const [subcategory, setSubcategory] = useState('')
   const [status, setStatus] = useState('')
   const [colour, setColour] = useState('')
   const [sort, setSort] = useLocalState('outfits.sort', 'recent')
@@ -336,12 +337,33 @@ export default function Wardrobe() {
   const [version, setVersion] = useState(0)
 
   const load = useCallback(
-    () => api.items({ q, category, status, colour, sort }),
-    [q, category, status, colour, sort]
+    () => api.items({ q, category, subcategory, status, colour, sort }),
+    [q, category, subcategory, status, colour, sort]
   )
-  const { data, loading, error, reload } = useAsync(load, [q, category, status, colour, sort])
+  const { data, loading, error, reload } =
+    useAsync(load, [q, category, subcategory, status, colour, sort])
   const items = data?.items || []
-  const filtering = Boolean(q || category || status || colour)
+  const filtering = Boolean(q || category || subcategory || status || colour)
+
+  // Subcategories present in what is on screen, same ref trick as the colour
+  // rail: picking one narrows the results to itself, and rebuilding the rail
+  // from those would leave a single chip and no way back.
+  const subRef = useRef([])
+  const subcats = useMemo(() => {
+    if (subcategory) return subRef.current
+    const counts = new Map()
+    for (const item of items) {
+      const raw = String(item.subcategory || '').trim()
+      if (!raw) continue
+      const key = raw.toLowerCase()
+      const slot = counts.get(key) || { key, label: raw, count: 0 }
+      slot.count += 1
+      counts.set(key, slot)
+    }
+    subRef.current = [...counts.values()]
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    return subRef.current
+  }, [items, subcategory])
 
   // Only the categories you actually own something in. Nineteen chips, most of
   // them matching nothing, is a worse filter than the five you wear — and the
@@ -419,10 +441,10 @@ export default function Wardrobe() {
 
       <div className="space-y-2">
         <div className="rail">
-          <Chip active={!category} onClick={() => setCategory('')}>All</Chip>
+          <Chip active={!category} onClick={() => { setCategory(''); setSubcategory('') }}>All</Chip>
           {inUse.map((c) => (
             <Chip key={c.key} active={category === c.key}
-                  onClick={() => setCategory(category === c.key ? '' : c.key)}>
+                  onClick={() => { setCategory(category === c.key ? '' : c.key); setSubcategory('') }}>
               {c.label}
               <span className="tabular-nums" style={{ opacity: 0.6 }}>{c.count}</span>
             </Chip>
@@ -433,6 +455,18 @@ export default function Wardrobe() {
             </span>
           )}
         </div>
+        {subcats.length > 1 && (
+          <div className="rail">
+            <Chip active={!subcategory} onClick={() => setSubcategory('')}>Any type</Chip>
+            {subcats.map((sc) => (
+              <Chip key={sc.key} active={subcategory === sc.key}
+                    onClick={() => setSubcategory(subcategory === sc.key ? '' : sc.key)}>
+                {sc.label}
+                <span className="tabular-nums" style={{ opacity: 0.6 }}>{sc.count}</span>
+              </Chip>
+            ))}
+          </div>
+        )}
         {/* Sort used to sit on the end of this row behind a hairline divider,
             which put an ordering control inside a row of filters and read as one
             long undifferentiated strip. It lives with the result count now. */}

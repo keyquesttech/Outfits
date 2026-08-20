@@ -110,8 +110,11 @@ SUGGESTABLE_FIELDS = ["brand", "material", "subcategory",
                       "colour_primary", "colour_secondary", "name"]
 
 # Suggested tags offered as one-tap chips. Free-text tags still work.
+# The occasion words among these do real work: tagging trousers "gym, date"
+# tells the outfit builder those are the occasions they belong to.
 SUGGESTED_TAGS = ["favourite", "logo", "smart", "comfy", "work", "gym",
-                  "going out", "layering", "holiday"]
+                  "going out", "layering", "holiday", "date", "sport",
+                  "formal", "lounge", "everyday"]
 
 # Warmth is stored 0-10 because the recommender sums it and compares the total
 # against a temperature target. People do not think in eleven grades, so the UI
