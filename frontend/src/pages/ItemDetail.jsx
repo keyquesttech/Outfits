@@ -130,7 +130,7 @@ export default function ItemDetail() {
         <Icon name="back" size={16} /> Back
       </button>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,22rem)_1fr] md:gap-8">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] md:gap-8">
         {/* The photo keeps you company while the facts scroll. */}
         <div className="space-y-3 md:sticky md:top-[calc(var(--header-h)+1.25rem)] md:self-start">
           <div className="card aspect-[3/4] overflow-hidden">

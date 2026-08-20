@@ -126,7 +126,9 @@ export default function App() {
       <ToastHost>
         <ConfirmHost>
         <TopBar />
-        <main key={pathname} className="safe-bottom page-fade mx-auto w-full max-w-[90rem] px-[var(--page-pad)] py-5 sm:py-7">
+        {/* Top padding only — .safe-bottom owns padding-bottom, and a py-*
+            utility would override it and shove page ends under the phone nav. */}
+        <main key={pathname} className="safe-bottom page-fade mx-auto w-full max-w-[90rem] px-[var(--page-pad)] pt-5 sm:pt-7">
           <Routes>
             <Route path="/" element={<Today />} />
             <Route path="/wardrobe" element={<Wardrobe />} />

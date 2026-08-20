@@ -115,10 +115,13 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
   return (
     <div className="card overflow-hidden">
       {/* Conditions on the left, the rest of the week filling the width on the
-          right. On a phone the two stack instead. */}
-      <div className="grid gap-px lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
+          right. On a phone the two stack instead. The explicit single column
+          and min-w-0 matter: without them the implicit grid column takes the
+          forecast strip's min-content width and the whole card overflows the
+          phone screen. */}
+      <div className="grid grid-cols-1 gap-px lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]"
            style={{ background: 'var(--border)' }}>
-        <div className="relative px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
+        <div className="relative min-w-0 px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
           <div className="pointer-events-none absolute inset-0" aria-hidden="true"
                style={{ background:
                  `radial-gradient(36rem 16rem at -4rem -6rem, color-mix(in srgb, ${tint} 14%, transparent), transparent 72%)` }} />
@@ -135,8 +138,10 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
                   feels like {Math.round(c.apparent_c)}°
                 </span>
               </div>
-              <p className="mt-1.5 truncate text-base font-semibold">{c.condition?.label}</p>
-              <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
+              <p className="mt-1.5 text-base font-semibold">{c.condition?.label}</p>
+              {/* Wraps rather than truncates: on a phone the interesting half —
+                  which models agree, how tightly — was the part cut off. */}
+              <p className="text-xs leading-snug" style={{ color: 'var(--muted)' }}>
                 {weather.location} · {weather.provider_label}
                 {weather.blend?.member_count > 1 && (
                   <> · {weather.blend.member_count} models
@@ -166,7 +171,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
         </div>
 
         {days.length > 0 && (
-          <div className="px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
+          <div className="min-w-0 px-4 py-4 sm:px-5 sm:py-5" style={{ background: 'var(--surface)' }}>
             <p className="label mb-2.5">Next {days.length} days</p>
             {/* Scrolls on a phone rather than crushing six days into the width. */}
             <div className="scroll-x -mx-4 flex gap-2 px-4 sm:-mx-5 sm:px-5 lg:mx-0 lg:px-0">
