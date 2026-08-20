@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, db, jobs
-from .routers import insights, items, laundry, outfits, settings, suggest, wear
+from .routers import insights, items, outfits, settings, suggest, wear
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for router in (items.router, outfits.router, wear.router, laundry.router,
+for router in (items.router, outfits.router, wear.router,
                suggest.router, insights.router, settings.router):
     app.include_router(router)
 
@@ -57,7 +57,13 @@ if config.STATIC_DIR.exists():
 
     @app.get("/{path:path}", include_in_schema=False)
     async def spa(path: str):
-        """Serve built files, falling back to index.html so client routes work."""
+        """Serve built files, falling back to index.html so client routes work.
+
+        An unknown API path must say 404 rather than serve the app shell — a
+        caller of a removed endpoint should hear "gone", not receive HTML.
+        """
+        if path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
         candidate = (config.STATIC_DIR / path).resolve()
         if path and candidate.is_file() and config.STATIC_DIR.resolve() in candidate.parents:
             headers = IMMUTABLE if path.startswith("assets/") else NO_CACHE

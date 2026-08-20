@@ -121,11 +121,8 @@ export default function Outfits() {
     setBusy(outfit.id)
     try {
       const res = await api.logWear({ outfit_id: outfit.id, occasion: outfit.occasion })
-      const dirty = res.now_needing_wash?.length
       const names = res.resolved ? res.wear.items.map((i) => i.name).join(', ') : null
-      toast(names
-        ? `Picked for today: ${names}.`
-        : dirty ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing.` : 'Outfit logged.', 'success')
+      toast(names ? `Picked for today: ${names}.` : 'Outfit logged.', 'success')
       reload(true)
     } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
   }
@@ -205,12 +202,6 @@ export default function Outfits() {
                   Options: {Object.entries(o.option_layers)
                     .map(([l, n]) => `${n} ${titleCase(l)}`).join(' · ')} — wearing picks
                   the best for the day.
-                </p>
-              )}
-
-              {o.needs_wash && (
-                <p className="px-4 pb-2 text-xs font-medium" style={{ color: 'var(--bad)' }}>
-                  Something in this outfit needs washing
                 </p>
               )}
 

@@ -17,24 +17,23 @@ import re
 from . import db
 from .constants import (
     BELT_CATEGORIES, CATEGORY_LAYERS, DEFAULT_FORMALITY, DEFAULT_WARMTH,
-    DEFAULT_WASH_AFTER_WEARS, FIT_OPTIONS, LAYER_ORDER, NO_WASH_CATEGORIES,
-    ONE_PIECE_CATEGORIES,
+    FIT_OPTIONS, LAYER_ORDER, ONE_PIECE_CATEGORIES,
 )
 
-COLUMNS = ("key", "label", "layer", "warmth", "formality", "wash_after_wears",
+COLUMNS = ("key", "label", "layer", "warmth", "formality",
            "one_piece", "takes_belt", "fit_options", "is_builtin", "sort_order")
 
 # What a category gets when the user does not say. Picked from the layer,
 # because the layer is what a category fundamentally is.
 LAYER_DEFAULTS = {
-    "base":      {"warmth": 1, "formality": 1, "wash_after_wears": 1, "fit": False},
-    "bottom":    {"warmth": 4, "formality": 2, "wash_after_wears": 4, "fit": True},
-    "top":       {"warmth": 3, "formality": 2, "wash_after_wears": 2, "fit": True},
-    "mid":       {"warmth": 6, "formality": 3, "wash_after_wears": 5, "fit": True},
-    "outer":     {"warmth": 8, "formality": 3, "wash_after_wears": 25, "fit": True},
-    "footwear":  {"warmth": 3, "formality": 3, "wash_after_wears": 30, "fit": False},
-    "accessory": {"warmth": 2, "formality": 3, "wash_after_wears": 8, "fit": False},
-    "jewellery": {"warmth": 0, "formality": 3, "wash_after_wears": 0, "fit": False},
+    "base":      {"warmth": 1, "formality": 1, "fit": False},
+    "bottom":    {"warmth": 4, "formality": 2, "fit": True},
+    "top":       {"warmth": 3, "formality": 2, "fit": True},
+    "mid":       {"warmth": 6, "formality": 3, "fit": True},
+    "outer":     {"warmth": 8, "formality": 3, "fit": True},
+    "footwear":  {"warmth": 3, "formality": 3, "fit": False},
+    "accessory": {"warmth": 2, "formality": 3, "fit": False},
+    "jewellery": {"warmth": 0, "formality": 3, "fit": False},
 }
 
 # Fit words differ by what the garment is: trousers are skinny, coats are fitted.
@@ -56,7 +55,6 @@ def defaults_for(layer: str) -> dict:
     return {
         "warmth": base["warmth"],
         "formality": base["formality"],
-        "wash_after_wears": base["wash_after_wears"],
         "fit_options": (LAYER_FIT_OPTIONS.get(layer, DEFAULT_FIT_OPTIONS)
                         if base["fit"] else []),
     }
@@ -68,9 +66,7 @@ def _row_out(row: dict) -> dict:
     category["takes_belt"] = bool(category.get("takes_belt"))
     category["is_builtin"] = bool(category.get("is_builtin"))
     category["fit_options"] = db.loads(category.get("fit_options"), [])
-    # A category is laundered unless its threshold is zero. Jewellery, watches,
-    # glasses and bags all sit at zero, which is what "never washed" means here.
-    category["launderable"] = int(category.get("wash_after_wears") or 0) > 0
+    category.pop("wash_after_wears", None)
     return category
 
 
@@ -133,19 +129,18 @@ def create(key: str, label: str, layer: str, **overrides) -> dict:
     values.update({k: v for k, v in overrides.items() if v is not None})
     order = db.query_one("SELECT MAX(sort_order) AS top FROM categories") or {}
     db.execute(
-        "INSERT INTO categories(key, label, layer, warmth, formality, wash_after_wears, "
+        "INSERT INTO categories(key, label, layer, warmth, formality, "
         "one_piece, takes_belt, fit_options, is_builtin, sort_order) "
-        "VALUES (?,?,?,?,?,?,?,?,?,0,?)",
+        "VALUES (?,?,?,?,?,?,?,?,0,?)",
         (key, label, layer, int(values["warmth"]), int(values["formality"]),
-         int(values["wash_after_wears"]), int(bool(values["one_piece"])),
-         int(bool(values["takes_belt"])), db.dumps(values["fit_options"]),
-         (order.get("top") or 0) + 1),
+         int(bool(values["one_piece"])), int(bool(values["takes_belt"])),
+         db.dumps(values["fit_options"]), (order.get("top") or 0) + 1),
     )
     return get(key)
 
 
 def update(key: str, fields: dict) -> dict | None:
-    allowed = {"label", "layer", "warmth", "formality", "wash_after_wears",
+    allowed = {"label", "layer", "warmth", "formality",
                "one_piece", "takes_belt", "fit_options", "sort_order"}
     updates = {}
     for name, value in fields.items():
@@ -203,19 +198,16 @@ def seed(conn) -> int:
         return 0
     rows = []
     for order, (key, layer) in enumerate(CATEGORY_LAYERS.items()):
-        wash = DEFAULT_WASH_AFTER_WEARS.get(key, 3)
-        if key in NO_WASH_CATEGORIES:
-            wash = 0
         rows.append((
             key, key.replace("_", " ").title(), layer,
-            DEFAULT_WARMTH.get(key, 3), DEFAULT_FORMALITY.get(key, 3), wash,
+            DEFAULT_WARMTH.get(key, 3), DEFAULT_FORMALITY.get(key, 3),
             int(key in ONE_PIECE_CATEGORIES), int(key in BELT_CATEGORIES),
             db.dumps(FIT_OPTIONS.get(key, [])), 1, order,
         ))
     conn.executemany(
         "INSERT INTO categories(key, label, layer, warmth, formality, "
-        "wash_after_wears, one_piece, takes_belt, fit_options, is_builtin, "
-        "sort_order) VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows)
+        "one_piece, takes_belt, fit_options, is_builtin, "
+        "sort_order) VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
     return len(rows)
 
 

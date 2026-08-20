@@ -297,7 +297,7 @@ export default function History() {
     const ok = await confirm({
       title: 'Delete this wear?',
       body: `${wear.items.length} item${wear.items.length === 1 ? '' : 's'} will have their `
-            + 'wear counts put back, including progress towards the next wash.',
+            + 'wear counts put back.',
       detail: 'Any comfort rating on this wear also stops calibrating your suggestions.',
       confirmLabel: 'Delete',
     })
@@ -340,7 +340,7 @@ export default function History() {
     <div className="space-y-6">
       <PageHeader
         title="History"
-        description="Everything logged as worn. Deleting an entry puts the wear counters back, so a mis-tap does not leave a shirt waiting to be washed."
+        description="Everything logged as worn. Deleting an entry puts the wear counters back."
         action={
           <button className="btn btn-primary" onClick={() => setAdding(true)}>
             <Icon name="plus" size={16} /> Log a past outfit

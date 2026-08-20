@@ -10,7 +10,7 @@ import threading
 import time
 import traceback
 
-from . import categories, colours, db, images
+from . import colours, db, images
 from .ai import get_provider
 
 POLL_SECONDS = 2
@@ -75,11 +75,6 @@ def _apply_analysis(item_id: int, data: dict, provider_name: str) -> dict:
     if data.get("water_proof") is not None:
         updates["water_proof"] = 1 if data["water_proof"] else 0
 
-    category = updates.get("category", row.get("category"))
-    if row.get("wash_after_wears") is None and category:
-        known = categories.get(category)
-        updates["wash_after_wears"] = int(known["wash_after_wears"]) if known else 3
-
     updates["ai_provider"] = provider_name
     updates["ai_confidence"] = data.get("confidence")
 
@@ -89,27 +84,6 @@ def _apply_analysis(item_id: int, data: dict, provider_name: str) -> dict:
         (*updates.values(), item_id),
     )
     return updates
-
-
-def _apply_care(item_id: int, data: dict, source: str) -> None:
-    db.execute(
-        "INSERT INTO care_instructions(item_id, wash_temp, wash_cycle, hand_wash_only, "
-        "do_not_wash, tumble_dry, iron_temp, bleach, dry_clean, colour_group, raw_symbols, "
-        "source, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now')) "
-        "ON CONFLICT(item_id) DO UPDATE SET wash_temp=excluded.wash_temp, "
-        "wash_cycle=excluded.wash_cycle, hand_wash_only=excluded.hand_wash_only, "
-        "do_not_wash=excluded.do_not_wash, tumble_dry=excluded.tumble_dry, "
-        "iron_temp=excluded.iron_temp, bleach=excluded.bleach, dry_clean=excluded.dry_clean, "
-        "colour_group=excluded.colour_group, raw_symbols=excluded.raw_symbols, "
-        "source=excluded.source, updated_at=datetime('now')",
-        (
-            item_id, data.get("wash_temp"), data.get("wash_cycle"),
-            1 if data.get("hand_wash_only") else 0, 1 if data.get("do_not_wash") else 0,
-            data.get("tumble_dry"), data.get("iron_temp"), data.get("bleach"),
-            data.get("dry_clean"), data.get("colour_group"),
-            db.dumps(data.get("raw_symbols") or []), source,
-        ),
-    )
 
 
 def run_job(job: dict) -> None:
@@ -125,7 +99,7 @@ def run_job(job: dict) -> None:
     row = db.query_one("SELECT * FROM items WHERE id = ?", (item_id,)) if item_id else None
     source_path = payload.get("image_path") or (row or {}).get("image_path")
     blob = images.photo_bytes(source_path) if source_path else None
-    if kind in ("analyse_item", "care_label", "cutout") and not blob:
+    if kind in ("analyse_item", "cutout") and not blob:
         _finish(job["id"], "failed", error="Photo not found")
         return
 
@@ -136,14 +110,6 @@ def run_job(job: dict) -> None:
             return
         applied = _apply_analysis(item_id, data, provider.name)
         _finish(job["id"], "done", {"analysis": data, "applied": list(applied)})
-
-    elif kind == "care_label":
-        data = provider.read_care_label(blob)
-        if not data:
-            _finish(job["id"], "failed", error="Provider returned nothing")
-            return
-        _apply_care(item_id, data, provider.name)
-        _finish(job["id"], "done", {"care": data})
 
     elif kind == "cutout":
         png = provider.remove_background(blob)

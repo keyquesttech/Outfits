@@ -70,25 +70,6 @@ def test_an_outfit_without_options_passes_through_untouched():
     assert recommend.resolve_outfit(fixed, COLD) == fixed
 
 
-def test_a_dirty_option_loses_to_a_clean_one():
-    items = outfit_with_options()
-    for i in items:
-        if i["name"] == "Heavy knit":
-            i["needs_wash"] = True
-    chosen = recommend.resolve_outfit(items, COLD)
-    # Even on a cold day, the dirty knit is out — the tee is what is wearable.
-    assert "Heavy knit" not in {i["name"] for i in chosen}
-
-
-def test_all_options_dirty_still_yields_an_outfit():
-    items = outfit_with_options()
-    for i in items:
-        if i["layer"] == "top":
-            i["needs_wash"] = True
-    chosen = recommend.resolve_outfit(items, COLD)
-    assert any(i["layer"] == "top" for i in chosen)
-
-
 def test_serialised_warmth_averages_options_not_sums_them():
     row = {"id": 1, "name": "Gym", "is_favourite": 0, "is_base": 0}
     out = outfit_out(row, outfit_with_options())

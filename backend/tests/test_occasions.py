@@ -42,7 +42,7 @@ def add_item(name, category, tags=(), **fields):
 
 def top_pool(occasion):
     return {i["id"] for i in recommend._pools(
-        False, None, occasion, recommend.tags_by_item())["top"]}
+        None, occasion, recommend.tags_by_item())["top"]}
 
 
 MILD = {"apparent_c": 18.0, "rain_chance": 0, "wind_kph": 0}
@@ -62,7 +62,7 @@ def test_the_users_own_example_pants_tagged_gym_and_date():
     fresh()
     pants = add_item("Joggers", "bottom", tags=("gym", "date"))
     pool = lambda occ: {i["id"] for i in recommend._pools(
-        False, None, occ, recommend.tags_by_item())["bottom"]}
+        None, occ, recommend.tags_by_item())["bottom"]}
     assert pants in pool("sport")     # gym answers to sport
     assert pants in pool("date")
     assert pants not in pool("work")

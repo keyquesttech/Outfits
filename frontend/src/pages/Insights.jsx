@@ -129,11 +129,10 @@ export default function Insights() {
                 ? `${s.total_items - s.active_items} archived`
                 : 'all in use'} />
         <Stat label="Total wears" value={s.total_wears} sub={`${s.wear_logs} days logged`} />
-        <Stat label="Needs washing" value={s.dirty_items} tone={s.dirty_items ? 'bad' : undefined}
-              sub={`${s.wash_loads} loads run`} />
-        {/* This used to repeat the wash-load count from the tile beside it. */}
         <Stat label="Outfits saved" value={s.outfits}
               sub={s.outfits ? 'ready to wear' : 'none built yet'} />
+        <Stat label="Categories" value={s.by_category.length}
+              sub="in use" />
       </div>
 
       <Section title="Items worn per day, last 12 weeks">
@@ -158,7 +157,7 @@ export default function Insights() {
             {data.colours.some((c) => !c.known) && (
               <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>
                 Some colours are written in words the app does not recognise, so they are
-                not sorted into a laundry pile or matched in an outfit. Open the item and
+                not matched in an outfit. Open the item and
                 pick a colour from the list to fix it.
               </p>
             )}
@@ -226,22 +225,6 @@ export default function Insights() {
       </Section>
 
       <div className="grid gap-5 md:grid-cols-2">
-        <Section title="Laundry">
-          <div className="card px-4 py-4">
-            {data.wash.by_temp.length ? (
-              <BarList rows={data.wash.by_temp.map((t) => ({ label: `${t.temp_c}°C`, count: t.loads }))}
-                       format={(r) => `${r.count} load${r.count === 1 ? '' : 's'}`} />
-            ) : (
-              <EmptyNote>No washes recorded yet.</EmptyNote>
-            )}
-            {data.wash.most_washed.length > 0 && (
-              <>
-                <p className="mb-2 mt-4 label">Washed most often</p>
-                <ItemStrip items={data.wash.most_washed} valueOf={(i) => `${i.wash_count}×`} emptyNote="" />
-              </>
-            )}
-          </div>
-        </Section>
 
         <Section title="How you feel the cold">
           <div className="card px-4 py-4">

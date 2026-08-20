@@ -32,32 +32,6 @@ ONE_PIECE_CATEGORIES = {"dress", "pyjamas"}
 
 LAYER_ORDER = ["base", "bottom", "top", "mid", "outer", "footwear", "accessory", "jewellery"]
 
-# Categories that are never laundered — jewellery, watches, glasses, bags.
-NO_WASH_CATEGORIES = {"jewellery", "watch", "glasses", "bag"}
-
-# Wears before an item needs laundering. Overridable per item.
-DEFAULT_WASH_AFTER_WEARS = {
-    "underwear": 1,
-    "sock": 1,
-    "shirt": 2,
-    "top": 2,
-    "dress": 2,
-    "pyjamas": 4,
-    "bottom": 4,
-    "mid": 5,
-    "knitwear": 5,
-    "outerwear": 25,
-    "footwear": 30,
-    "headwear": 10,
-    "scarf": 8,
-    "glove": 8,
-    "belt": 0,
-    "bag": 0,
-    "glasses": 0,
-    "watch": 0,
-    "jewellery": 0,
-}
-
 # Typical insulation by category, used to seed `warmth` before the user tunes it.
 DEFAULT_WARMTH = {
     "underwear": 1, "sock": 2, "shirt": 3, "top": 3, "dress": 3, "pyjamas": 4,
@@ -65,8 +39,6 @@ DEFAULT_WARMTH = {
     "headwear": 3, "scarf": 4, "glove": 3, "belt": 0, "bag": 0,
     "glasses": 0, "watch": 0, "jewellery": 0,
 }
-
-STATUSES = ["clean", "worn", "needs_wash", "airing", "in_wash"]
 
 # Where a newly added item starts on the 1-5 formality scale.
 DEFAULT_FORMALITY = {
@@ -136,15 +108,6 @@ FORMALITY_LEVELS = [
 ]
 
 SEASONS = ["spring", "summer", "autumn", "winter"]
-
-WASH_CYCLES = ["normal", "synthetics", "delicate", "wool", "hand"]
-TUMBLE_DRY = ["any", "low", "medium", "high", "no"]
-IRON_TEMP = ["any", "low", "medium", "high", "no"]
-BLEACH = ["any", "non_chlorine", "no"]
-DRY_CLEAN = ["any", "petroleum", "no"]
-
-# Laundry loads are grouped by these; mixing them is what ruins clothes.
-COLOUR_GROUPS = ["whites", "lights", "darks", "colours", "delicates"]
 
 # Colour vocabulary. The definitions live in `colours` so that naming a pixel,
 # canonicalising what someone typed, and sorting a laundry pile all read from

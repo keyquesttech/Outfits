@@ -383,27 +383,6 @@ export function Chip({ active, children, ...rest }) {
 
 /* ---------- domain bits ---------- */
 
-const STATUS_STYLE = {
-  clean: { label: 'Clean', tone: 'good' },
-  worn: { label: 'Worn', tone: 'muted' },
-  needs_wash: { label: 'Needs wash', tone: 'bad' },
-  airing: { label: 'Airing', tone: 'warn' },
-  in_wash: { label: 'In the wash', tone: 'accent' },
-}
-
-export function StatusPill({ status, size = 'sm' }) {
-  const s = STATUS_STYLE[status] || STATUS_STYLE.clean
-  return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full font-semibold ${size === 'sm' ? 'px-2 py-0.5 text-2xs' : 'px-2.5 py-1 text-xs'}`}
-      style={{ background: 'var(--surface-2)', color: `var(--${s.tone})`, border: '1px solid var(--border)' }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: `var(--${s.tone})` }} />
-      {s.label}
-    </span>
-  )
-}
-
 export function Palette({ palette = [], size = 14, max = 5 }) {
   if (!palette.length) return null
   return (

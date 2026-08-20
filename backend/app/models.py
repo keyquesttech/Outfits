@@ -19,7 +19,6 @@ class ItemIn(BaseModel):
     seasons: list[str] | None = None
     wind_proof: bool = False
     water_proof: bool = False
-    wash_after_wears: int | None = None
     notes: str | None = None
     tags: list[str] | None = None
 
@@ -42,8 +41,6 @@ class ItemPatch(BaseModel):
     seasons: list[str] | None = None
     wind_proof: bool | None = None
     water_proof: bool | None = None
-    wash_after_wears: int | None = None
-    status: str | None = None
     notes: str | None = None
     is_active: bool | None = None
     tags: list[str] | None = None
@@ -56,7 +53,6 @@ class CategoryIn(BaseModel):
     # a category only really asks two questions.
     warmth: int | None = Field(default=None, ge=0, le=10)
     formality: int | None = Field(default=None, ge=1, le=5)
-    wash_after_wears: int | None = Field(default=None, ge=0, le=200)
     one_piece: bool | None = None
     takes_belt: bool | None = None
     fit_options: list[str] | None = None
@@ -67,24 +63,10 @@ class CategoryPatch(BaseModel):
     layer: str | None = None
     warmth: int | None = Field(default=None, ge=0, le=10)
     formality: int | None = Field(default=None, ge=1, le=5)
-    wash_after_wears: int | None = Field(default=None, ge=0, le=200)
     one_piece: bool | None = None
     takes_belt: bool | None = None
     fit_options: list[str] | None = None
     sort_order: int | None = None
-
-
-class CareIn(BaseModel):
-    wash_temp: int | None = None
-    wash_cycle: str | None = None
-    hand_wash_only: bool = False
-    do_not_wash: bool = False
-    tumble_dry: str | None = None
-    iron_temp: str | None = None
-    bleach: str | None = None
-    dry_clean: str | None = None
-    colour_group: str | None = None
-    notes: str | None = None
 
 
 class OutfitIn(BaseModel):
@@ -126,18 +108,6 @@ class WearPatch(BaseModel):
     notes: str | None = None
 
 
-class WashIn(BaseModel):
-    item_ids: list[int]
-    washed_on: str | None = None
-    program: str | None = None
-    temp_c: int | None = None
-    notes: str | None = None
-
-
-class StatusIn(BaseModel):
-    status: str
-
-
 class SettingsIn(BaseModel):
     values: dict[str, str]
 
@@ -159,7 +129,6 @@ class SuggestFeedbackIn(BaseModel):
 class SuggestIn(BaseModel):
     occasion: str | None = None
     count: int = Field(default=3, ge=1, le=8)
-    exclude_dirty: bool = True
     seasons: list[str] | None = None
     pinned: list[int] | None = None
     use_ai: bool = False

@@ -2,11 +2,31 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException
 
-from .. import db, recommend, wash, weather
+from .. import db, recommend, weather
 from ..models import WearIn, WearPatch
 from ..serializers import load_items
 
 router = APIRouter(prefix="/api/wear", tags=["wear"])
+
+
+def _count_wear(item_ids: list[int], worn_on: str) -> None:
+    """A wear happened: the items' totals and last-worn move forward."""
+    for item_id in item_ids:
+        db.execute(
+            "UPDATE items SET total_wears = total_wears + 1, "
+            "last_worn = MAX(COALESCE(last_worn, ''), ?), "
+            "updated_at = datetime('now') WHERE id = ?",
+            (worn_on, item_id),
+        )
+
+
+def _uncount_wear(item_ids: list[int]) -> None:
+    for item_id in item_ids:
+        db.execute(
+            "UPDATE items SET total_wears = MAX(0, total_wears - 1), "
+            "updated_at = datetime('now') WHERE id = ?",
+            (item_id,),
+        )
 
 
 def _current_conditions() -> dict:
@@ -87,7 +107,7 @@ def list_wears(limit: int = 60, item_id: int | None = None):
 
 @router.post("", status_code=201)
 def log_wear(payload: WearIn):
-    """Record what was worn. This is what drives wear counts and the wash queue."""
+    """Record what was worn. This is what drives wear counts and the analytics."""
     item_ids = list(dict.fromkeys(payload.item_ids))
     resolved = False
     if payload.outfit_id and not item_ids:
@@ -134,7 +154,9 @@ def log_wear(payload: WearIn):
         "INSERT OR IGNORE INTO wear_log_items(wear_log_id, item_id) VALUES (?,?)",
         [(log_id, i) for i in item_ids],
     )
-    updated = wash.register_wear(item_ids, worn_on)
+    _count_wear(item_ids, worn_on)
+    _refresh_last_worn(item_ids)
+    updated = load_items(item_ids)
 
     if payload.outfit_id:
         db.execute("UPDATE outfits SET times_worn = times_worn + 1, last_worn = ? WHERE id = ?",
@@ -151,7 +173,6 @@ def log_wear(payload: WearIn):
         "wear": _hydrate(db.query_one("SELECT * FROM wear_log WHERE id = ?", (log_id,))),
         "resolved": resolved,
         "updated_items": updated,
-        "now_needing_wash": [i["id"] for i in updated if i["needs_wash"]],
         "personal_offset": offset,
     }
 
@@ -228,9 +249,8 @@ def update_wear(wear_id: int, payload: WearPatch):
             db.executemany(
                 "INSERT OR IGNORE INTO wear_log_items(wear_log_id, item_id) VALUES (?,?)",
                 [(wear_id, i) for i in added])
-            wash.undo_wear(removed)
-            worn_on_target = fields.get("worn_on") or row["worn_on"]
-            wash.register_wear(added, worn_on_target)
+            _uncount_wear(removed)
+            _count_wear(added, fields.get("worn_on") or row["worn_on"])
     else:
         fields.pop("item_ids", None)
 
@@ -309,7 +329,7 @@ def remove_item_from_wear(wear_id: int, item_id: int):
 
     db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ? AND item_id = ?",
                (wear_id, item_id))
-    wash.undo_wear([item_id])
+    _uncount_wear([item_id])
     _refresh_last_worn([item_id])
 
     remaining = [i for i in ids if i != item_id]
@@ -332,7 +352,7 @@ def delete_wear(wear_id: int):
     ids = [r["item_id"] for r in db.query(
         "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)
     )]
-    wash.undo_wear(ids)
+    _uncount_wear(ids)
     db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))
     _refresh_last_worn(ids)
     if row.get("outfit_id"):

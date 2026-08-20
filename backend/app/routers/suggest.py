@@ -123,7 +123,6 @@ def suggest(payload: SuggestIn):
         conditions,
         occasion=payload.occasion,
         count=payload.count,
-        exclude_dirty=payload.exclude_dirty,
         seasons=payload.seasons,
         pinned=payload.pinned,
     )
@@ -140,8 +139,6 @@ def _ai_suggestion(conditions: dict, payload: SuggestIn) -> dict:
         return {"available": False, "reason": "No AI provider configured"}
 
     clause = "SELECT * FROM items WHERE is_active = 1"
-    if payload.exclude_dirty:
-        clause += " AND status NOT IN ('needs_wash','in_wash')"
     tag_map = recommend.tags_by_item()
     wardrobe = []
     for row in db.query(clause):

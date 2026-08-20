@@ -1,8 +1,8 @@
 # Outfits
 
 A self-hosted wardrobe manager running on a Raspberry Pi. Photograph what you own,
-build outfits, get suggestions scored against the London weather, and keep track of
-what needs washing.
+build outfits, and get suggestions scored against the London weather — and against
+your own taste.
 
 **Live at [http://outfits.local/](http://outfits.local/)** on the local network.
 
@@ -33,7 +33,7 @@ so each swatch carries its **runners-up**, offered after "or" in the form and on
 
 Colour fields stay free text, but everything typed into them resolves through one table:
 "Gray", "Dark Red", "off-white", "army green", "#1b1b1d" and "N/A" all land where they
-should. That table is what the laundry piles, the outfit matcher, the colour filter and the
+should. That table is what the outfit matcher, the colour filter and the
 analytics chart read, so a spelling can no longer fall silently through all four. A word
 the app does not know is kept exactly as typed and flagged in the form, never overwritten.
 
@@ -59,16 +59,16 @@ nineteen chips is however many you really use.
 Adding one asks two questions: what it is called, and which **layer** it occupies — base,
 bottom, top, mid, outer, footwear, accessory or jewellery. The layer is the part that
 matters, because it decides which slot the garment fills and the outfit builder only puts
-one thing in each. Warmth, formality and wears-before-washing are taken from the layer
-unless you set them; all three stay editable per garment either way.
+one thing in each. Warmth and formality are taken from the layer unless you set them;
+both stay editable per garment either way.
 
 Removing a category that still holds garments asks where they should go first. Deleting it
-outright would leave them naming something nothing recognises — no layer, so no outfits,
-and no wash threshold — so either the items move, or the delete is refused.
+outright would leave them naming something nothing recognises — no layer, so no
+outfits — so either the items move, or the delete is refused.
 
 An item can sit in **more than one category** — joggers filed as both Bottom and Pyjamas
 turn up under either filter, and count towards both. The main category still decides the
-layer, the wash default and how the outfit builder uses it, since a garment can only fill
+layer and how the outfit builder uses it, since a garment can only fill
 one slot in an outfit at a time; the extras are for finding things.
 
 Trousers, shirts, tops, knitwear and outerwear also carry a **fit** — skinny, regular,
@@ -76,13 +76,11 @@ loose, oversized and so on, chosen per category. Bottoms carry a **belt** toggle
 off for elasticated or drawstring trousers and the builder will not put a belt with them.
 
 Text fields capitalise each word as you type and offer what you have entered before, so a
-brand only has to be typed once. Tagging an item runs straight into its washing and care
-details, since that is what sorts it into the right laundry load later.
+brand only has to be typed once.
 
 Warmth is **Cold / Neutral / Hot**, formality is **Casual / Informal / Formal**, and
-damage is **None / Mild / Bad** — three buttons each rather than a slider. Damage is about
-the garment's condition, separate from whether it needs washing: a shirt can be clean and
-still have a hole in it. Anything not "None" shows as a badge on the item. Underneath, warmth is still a 0-10 number because the
+damage is **None / Mild / Bad** — three buttons each rather than a slider. Anything not
+"None" shows as a badge on the item. Underneath, warmth is still a 0-10 number because the
 recommender adds it up and compares the total against a temperature, and the three buttons
 map relative to the category: "hot" for a t-shirt is not the same number as "hot" for an
 overcoat.
@@ -128,19 +126,13 @@ currently believes: counts, the pieces it is pulled towards, the ones it steers 
 and your personal warmth offset shifts. The app converges on how *you* experience 12 °C
 rather than assuming an average body.
 
-**Washing that understands garments.** Each item has its own wear threshold — socks
-after one wear, a shirt after two, a coat after twenty-five. Once things are dirty the
-laundry view groups them into loads that can actually go in the machine together, split
-by temperature and colour, with wool and delicates kept separate. Care instructions can
-be typed in or read from a photograph of the care label.
-
 **Pyjamas** are a category of their own, and like a dress they count as covering top and
 bottom, so the builder never pairs them with trousers. They start at lounge formality, so
 they do not turn up in a suggestion for work.
 
 **Jewellery and accessories** are first-class: they flow through outfits and analytics
-like everything else, they never enter the wash pile, and metal tones are treated as
-metal rather than as a clashing colour.
+like everything else, and metal tones are treated as metal rather than as a clashing
+colour.
 
 **Wear history.** The History tab lists everything logged as worn, grouped by day, with
 the weather it was worn in. Every entry can be rated — *too cold / just right / too hot*,
@@ -178,11 +170,11 @@ wardrobe, together with the standing style notes in Settings.
 Every item also lists when it was worn, for what, how the weather felt and how you rated it.
 
 **Analytics.** Most and least worn, things untouched for 90 days, colour distribution,
-repeated pairings, laundry history, and gaps limiting your suggestions. The wardrobe can
+repeated pairings, and gaps limiting your suggestions. The wardrobe can
 also be filtered by colour, offering only the colours you actually own.
 
 **AI is entirely optional.** Choose "No AI" and everything above still works except
-automatic tagging and care-label reading.
+automatic tagging and the stylist suggestion.
 
 ---
 
@@ -268,8 +260,8 @@ sudo bash deploy/uninstall.sh
 sudo ip netns exec outfits /home/pi/Outfits/.venv/bin/python deploy/seed_demo.py --url http://localhost
 ```
 
-Creates 22 items with generated photos, care instructions, five outfits, and six weeks of
-wear history using real past weather so the calibration panel has honest data. Add
+Creates 22 items with generated photos, five outfits, and six weeks of wear history
+using real past weather so the calibration panel has honest data. Add
 `--wipe` to clear it out again.
 
 ---

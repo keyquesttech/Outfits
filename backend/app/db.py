@@ -22,7 +22,18 @@ ADDED_COLUMNS = {
         "is_base": "INTEGER NOT NULL DEFAULT 0",
     },
 }
-DROPPED_COLUMNS = {"items": ["price", "currency", "purchase_date"]}
+DROPPED_COLUMNS = {
+    "items": ["price", "currency", "purchase_date",
+              # The laundry half of the app was removed; wear counts stay.
+              "status", "wears_since_wash", "wash_after_wears", "last_washed"],
+    "categories": ["wash_after_wears"],
+}
+# Tables belonging to removed features. Dropped outright, not archived — the
+# uninstall of a feature should not leave furniture behind.
+DROPPED_TABLES = ["care_instructions", "wash_batches", "wash_batch_items"]
+# Indexes over dropped columns have to go first, or the column drop fails on
+# the index that still mentions it.
+DROPPED_INDEXES = ["idx_items_status", "idx_wash_batch_items_item"]
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -31,11 +42,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
         for name, decl in columns.items():
             if name not in existing:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    for index in DROPPED_INDEXES:
+        conn.execute(f"DROP INDEX IF EXISTS {index}")
     for table, columns in DROPPED_COLUMNS.items():
         existing = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         for name in columns:
             if name in existing:
                 conn.execute(f"ALTER TABLE {table} DROP COLUMN {name}")
+    for table in DROPPED_TABLES:
+        conn.execute(f"DROP TABLE IF EXISTS {table}")
     conn.commit()
 
 

@@ -15,7 +15,6 @@ function CategorySheet({ open, category, layers, onClose, onSaved }) {
   const [extra, setExtra] = useState({
     warmth: category?.warmth ?? '',
     formality: category?.formality ?? '',
-    wash_after_wears: category?.wash_after_wears ?? '',
     one_piece: category?.one_piece ?? false,
     takes_belt: category?.takes_belt ?? false,
   })
@@ -34,7 +33,6 @@ function CategorySheet({ open, category, layers, onClose, onSaved }) {
         ...(advanced || editing ? {
           warmth: number(extra.warmth),
           formality: number(extra.formality),
-          wash_after_wears: number(extra.wash_after_wears),
         } : {}),
       }
       if (editing) await api.updateCategory(category.key, body)
@@ -120,18 +118,13 @@ function CategorySheet({ open, category, layers, onClose, onSaved }) {
                      placeholder="auto"
                      onChange={(e) => setExtra({ ...extra, formality: e.target.value })} />
             </Field>
-            <Field label="Wash after" hint="0 = never">
-              <input className="input" type="number" min="0" value={extra.wash_after_wears}
-                     placeholder="auto"
-                     onChange={(e) => setExtra({ ...extra, wash_after_wears: e.target.value })} />
-            </Field>
           </div>
         )}
 
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
           {advanced || editing
             ? 'These seed a new item; every one stays editable per garment.'
-            : 'Warmth, formality and how many wears before washing are taken from the layer. Each is editable per garment anyway.'}
+            : 'Warmth and formality are taken from the layer. Both are editable per garment anyway.'}
         </p>
       </div>
     </Modal>
@@ -232,7 +225,6 @@ export default function CategoryManager() {
                 <p className="truncate text-sm font-semibold">{c.label}</p>
                 <p className="truncate text-xs" style={{ color: 'var(--muted)' }}>
                   {titleCase(c.layer)} layer · {c.count} item{c.count === 1 ? '' : 's'}
-                  {c.launderable ? ` · washes after ${c.wash_after_wears}` : ' · never washed'}
                   {c.one_piece ? ' · one piece' : ''}
                 </p>
               </div>

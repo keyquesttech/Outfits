@@ -8,50 +8,10 @@ import ItemForm, {
   itemFormPayload, itemFormState, nearestOption, warmthOptions,
 } from '../components/ItemForm.jsx'
 import ImageEditor from '../components/ImageEditor.jsx'
-import CareForm, { careFormPayload, careFormState } from '../components/CareForm.jsx'
 import {
-  Chip, EmptyNote, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
+  EmptyNote, ErrorNote, Field, Icon, Modal, Section, Spinner,
   titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
-
-function CareSheet({ open, onClose, item, onSaved }) {
-  const meta = useMeta()
-  const toast = useToast()
-  const [form, setForm] = useState(() => careFormState(item.care))
-  const [busy, setBusy] = useState(false)
-
-  const save = async () => {
-    setBusy(true)
-    try {
-      await api.putCare(item.id, careFormPayload(form))
-      toast('Care instructions saved.', 'success')
-      onSaved()
-      onClose()
-    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
-  }
-
-  const scanLabel = async (file) => {
-    setBusy(true)
-    try {
-      await api.careLabel(item.id, file)
-      toast('Reading the care label. This takes a few seconds.', 'success')
-      setTimeout(onSaved, 6000)
-      onClose()
-    } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Care instructions" wide
-      footer={<>
-        <button className="btn" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
-        </button>
-      </>}>
-      <CareForm form={form} setForm={setForm} meta={meta} onScan={scanLabel} busy={busy} />
-    </Modal>
-  )
-}
 
 function EditSheet({ open, onClose, item, onSaved }) {
   const meta = useMeta()
@@ -92,7 +52,6 @@ export default function ItemDetail() {
   const meta = useMeta()
   const { data: item, loading, error, reload } = useAsync(() => api.item(id), [id])
   const [editing, setEditing] = useState(false)
-  const [caring, setCaring] = useState(false)
   const [busy, setBusy] = useState(false)
   const [allWorn, setAllWorn] = useState(false)
   const [pendingPhoto, setPendingPhoto] = useState(null)
@@ -132,7 +91,7 @@ export default function ItemDetail() {
     const ok = await confirm({
       title: 'Delete this wear?',
       body: `The wear logged on ${w.worn_on} will be removed.`,
-      detail: 'Wear counts go back down, including progress towards the next wash.',
+      detail: 'Wear counts go back down.',
     })
     if (!ok) return
     setBusy(true)
@@ -164,16 +123,6 @@ export default function ItemDetail() {
   const warmthBand = nearestOption(warmthOptions(meta, item.category), item.warmth)
   const formalityBand = nearestOption(meta.formality_levels || [], item.formality)
 
-  const care = item.care
-  const careBits = care ? [
-    care.do_not_wash ? 'do not wash' : null,
-    care.hand_wash_only ? 'hand wash only' : null,
-    care.wash_temp ? `${care.wash_temp}°C` : null,
-    care.wash_cycle ? `${care.wash_cycle} cycle` : null,
-    care.tumble_dry ? `tumble ${care.tumble_dry}` : null,
-    care.iron_temp ? `iron ${care.iron_temp}` : null,
-    care.dry_clean && care.dry_clean !== 'no' ? 'dry clean' : null,
-  ].filter(Boolean) : []
 
   return (
     <div className="space-y-5">
@@ -248,7 +197,6 @@ export default function ItemDetail() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight">{item.name}</h1>
-              <StatusPill status={item.status} size="md" />
               {damaged && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
@@ -287,12 +235,6 @@ export default function ItemDetail() {
                     onClick={() => act(() => api.logWear({ item_ids: [item.id] }), 'Wear logged.')}>
               <Icon name="check" size={16} /> Log a wear
             </button>
-            {item.launderable && (
-              <button className="btn" disabled={busy}
-                      onClick={() => act(() => api.wash({ item_ids: [item.id] }), 'Marked as washed.')}>
-                <Icon name="drop" size={16} /> Mark washed
-              </button>
-            )}
             <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={16} /> Remove</button>
           </div>
 
@@ -301,17 +243,6 @@ export default function ItemDetail() {
               <p className="label">Worn</p>
               <p className="mt-0.5 text-xl font-bold tabular-nums">{item.total_wears}</p>
               {item.last_worn && <p className="text-2xs" style={{ color: 'var(--muted)' }}>last {item.last_worn}</p>}
-            </div>
-            <div className="card px-3 py-2.5">
-              <p className="label">Since wash</p>
-              <p className="mt-0.5 text-xl font-bold tabular-nums">
-                {item.launderable ? `${item.wears_since_wash}/${item.wash_threshold}` : '—'}
-              </p>
-              {item.launderable && (
-                <p className="text-2xs" style={{ color: item.needs_wash ? 'var(--bad)' : 'var(--muted)' }}>
-                  {item.needs_wash ? 'wash it' : `${item.wears_left} left`}
-                </p>
-              )}
             </div>
             <div className="card px-3 py-2.5">
               <p className="label">Warmth</p>
@@ -330,45 +261,6 @@ export default function ItemDetail() {
               </p>
             </div>
           </div>
-
-          <Section title="Status">
-            <div className="rail">
-              {(meta.statuses || []).map((s) => (
-                <Chip key={s} active={item.status === s} disabled={busy}
-                      onClick={() => act(() => api.setStatus(item.id, s))}>
-                  {titleCase(s)}
-                </Chip>
-              ))}
-            </div>
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              Marking it clean resets the wear counter. “Airing” keeps it out of the wash pile without resetting.
-            </p>
-          </Section>
-
-          <Section
-            title="Care"
-            action={<button className="btn btn-ghost" onClick={() => setCaring(true)}><Icon name="edit" size={14} /> Edit</button>}
-          >
-            <div className="card px-4 py-3">
-              {careBits.length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {careBits.map((b, i) => (
-                    <span key={i} className="rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>{b}</span>
-                  ))}
-                </div>
-              ) : (
-                <EmptyNote>
-                  No care instructions yet. Add them so laundry loads get grouped correctly.
-                </EmptyNote>
-              )}
-              {care?.raw_symbols?.length > 0 && (
-                <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-                  Symbols read: {care.raw_symbols.join(', ')}
-                </p>
-              )}
-            </div>
-          </Section>
 
           {(item.fit || item.seasons?.length > 0 || item.tags?.length > 0
             || item.water_proof || item.wind_proof) && (
@@ -437,26 +329,11 @@ export default function ItemDetail() {
             )}
             {item.worn_history?.length > 0 && (
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                Deleting a wear puts the counters back where they were, so it also
-                undoes progress towards the next wash.
+                Deleting a wear puts the counters back where they were.
               </p>
             )}
           </Section>
 
-          {item.wash_history?.length > 0 && (
-            <Section title="Wash history">
-              <div className="card divide-y" style={{ borderColor: 'var(--border)' }}>
-                {item.wash_history.slice(0, 6).map((w) => (
-                  <div key={w.id} className="flex items-center gap-3 px-3.5 py-2 text-sm">
-                    <span className="tabular-nums">{w.washed_on}</span>
-                    <span style={{ color: 'var(--muted)' }}>
-                      {[w.program, w.temp_c ? `${w.temp_c}°C` : null].filter(Boolean).join(' · ')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
         </div>
       </div>
 
@@ -471,7 +348,6 @@ export default function ItemDetail() {
         />
       )}
       {editing && <EditSheet open onClose={() => setEditing(false)} item={item} onSaved={() => reload(true)} />}
-      {caring && <CareSheet open onClose={() => setCaring(false)} item={item} onSaved={() => reload(true)} />}
     </div>
   )
 }

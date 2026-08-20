@@ -2,15 +2,14 @@ import re
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from .. import categories, colours, config, db, images, jobs, wash
+from .. import categories, colours, config, db, images, jobs
 from ..ai import get_provider
 from ..constants import (
-    BLEACH, COLOUR_GROUPS, DAMAGE_KEYS, DAMAGE_LEVELS, DRY_CLEAN,
-    FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER, PATTERNS, SEASONS, STATUSES,
-    SUGGESTABLE_FIELDS, SUGGESTED_TAGS, TUMBLE_DRY, WARMTH_LEVELS, WASH_CYCLES,
+    DAMAGE_KEYS, DAMAGE_LEVELS, FORMALITY_LEVELS, LAYER_ORDER, PATTERNS,
+    SEASONS, SUGGESTABLE_FIELDS, SUGGESTED_TAGS, WARMTH_LEVELS,
 )
-from ..models import CareIn, CategoryIn, CategoryPatch, ItemIn, ItemPatch, StatusIn
-from ..serializers import care_out, item_out
+from ..models import CategoryIn, CategoryPatch, ItemIn, ItemPatch
+from ..serializers import item_out
 
 router = APIRouter(prefix="/api", tags=["items"])
 
@@ -18,7 +17,7 @@ ITEM_COLUMNS = {
     "name", "category", "subcategory", "brand", "material", "pattern",
     "colour_primary", "colour_secondary", "warmth", "formality", "seasons",
     "wind_proof", "water_proof", "fit", "damage", "takes_belt",
-    "wash_after_wears", "status", "notes", "is_active", "colour_palette",
+    "notes", "is_active", "colour_palette",
     "image_path", "thumb_path", "cutout_path",
 }
 
@@ -46,19 +45,10 @@ def meta():
         "category_counts": in_use,
         "layers": LAYER_ORDER,
         "layer_options": categories.layers(),
-        "statuses": STATUSES,
         "seasons": SEASONS,
-        "wash_cycles": WASH_CYCLES,
-        "tumble_dry": TUMBLE_DRY,
-        "iron_temp": IRON_TEMP,
-        "bleach": BLEACH,
-        "dry_clean": DRY_CLEAN,
-        "colour_groups": COLOUR_GROUPS,
         "colours": colours.palette_options(),
         "colour_lookup": colours.lookup_table(),
         "colour_blanks": sorted(colours.BLANKS),
-        "no_wash_categories": sorted(c["key"] for c in catalogue if not c["launderable"]),
-        "default_wash_after_wears": {c["key"]: c["wash_after_wears"] for c in catalogue},
         "default_warmth": {c["key"]: c["warmth"] for c in catalogue},
         "default_formality": {c["key"]: c["formality"] for c in catalogue},
         "patterns": PATTERNS,
@@ -195,9 +185,6 @@ def _hydrate(row: dict) -> dict:
     item["categories"] = _categories_for(item["id"], item["category"])
     item["extra_categories"] = item["categories"][1:]
     item["tags"] = _tags_for(item["id"])
-    item["care"] = care_out(db.query_one(
-        "SELECT * FROM care_instructions WHERE item_id = ?", (item["id"],)
-    ))
     return item
 
 
@@ -205,14 +192,12 @@ def _hydrate(row: dict) -> dict:
 def list_items(
     category: str | None = None,
     subcategory: str | None = None,
-    status: str | None = None,
     layer: str | None = None,
     colour: str | None = None,
     season: str | None = None,
     tag: str | None = None,
     q: str | None = None,
     include_inactive: bool = False,
-    needs_wash: bool | None = None,
     sort: str = Query("recent", pattern="^(recent|name|worn|least_worn)$"),
     limit: int = Query(500, ge=1, le=2000),
 ):
@@ -239,9 +224,6 @@ def list_items(
         # Free text, so match by what a person would call the same thing.
         where.append("LOWER(TRIM(items.subcategory)) = ?")
         params.append(subcategory.strip().lower())
-    if status:
-        where.append("items.status = ?")
-        params.append(status)
     if colour:
         # Filter on the canonical name so "Gray" and "grey" are one filter, and
         # match the secondary too — a black shirt with a white print is white
@@ -276,8 +258,6 @@ def list_items(
         items.append(item)
     if layer:
         items = [i for i in items if i["layer"] == layer]
-    if needs_wash is not None:
-        items = [i for i in items if i["needs_wash"] == needs_wash]
     return {"items": items, "count": len(items)}
 
 
@@ -292,19 +272,7 @@ def get_item(item_id: int):
         "ON wear_log.id = wear_log_items.wear_log_id WHERE wear_log_items.item_id = ? "
         "ORDER BY worn_on DESC LIMIT 30", (item_id,)
     )
-    item["wash_history"] = db.query(
-        "SELECT wash_batches.* FROM wash_batches JOIN wash_batch_items "
-        "ON wash_batches.id = wash_batch_items.batch_id WHERE wash_batch_items.item_id = ? "
-        "ORDER BY washed_on DESC LIMIT 30", (item_id,)
-    )
     return item
-
-
-def _default_wash(category: str, explicit: int | None) -> int | None:
-    if explicit is not None:
-        return explicit
-    known = categories.get(category)
-    return int(known["wash_after_wears"]) if known else None
 
 
 @router.post("/items", status_code=201)
@@ -317,8 +285,8 @@ def create_item(payload: ItemIn):
     item_id = db.execute(
         "INSERT INTO items(name, category, subcategory, brand, material, pattern, fit, "
         "damage, takes_belt, colour_primary, colour_secondary, warmth, formality, seasons, "
-        "wind_proof, water_proof, wash_after_wears, notes) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "wind_proof, water_proof, notes) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (
             payload.name, payload.category, payload.subcategory, payload.brand,
             payload.material, payload.pattern, payload.fit,
@@ -327,7 +295,6 @@ def create_item(payload: ItemIn):
             tidy["colour_secondary"], payload.warmth, payload.formality,
             db.dumps(payload.seasons or []), int(payload.wind_proof),
             int(payload.water_proof),
-            _default_wash(payload.category, payload.wash_after_wears),
             payload.notes,
         ),
     )
@@ -367,13 +334,12 @@ async def upload_item(
 
     item_id = db.execute(
         "INSERT INTO items(name, category, colour_primary, colour_secondary, "
-        "colour_palette, warmth, formality, image_path, thumb_path, wash_after_wears, seasons) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        "colour_palette, warmth, formality, image_path, thumb_path, seasons) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?)",
         (
             name, category, primary, secondary, db.dumps(palette),
             defaults.get("warmth", 5), defaults.get("formality", 3),
-            saved["image_path"], saved["thumb_path"],
-            _default_wash(category, None), db.dumps([]),
+            saved["image_path"], saved["thumb_path"], db.dumps([]),
         ),
     )
 
@@ -442,8 +408,6 @@ def update_item(item_id: int, payload: ItemPatch):
 
     if "category" in updates and not categories.get(updates["category"]):
         raise HTTPException(400, f"Unknown category: {updates['category']}")
-    if "status" in updates and updates["status"] not in STATUSES:
-        raise HTTPException(400, f"Unknown status: {updates['status']}")
     if updates.get("damage") and updates["damage"] not in DAMAGE_KEYS:
         raise HTTPException(400, f"Unknown damage level: {updates['damage']}")
 
@@ -453,19 +417,7 @@ def update_item(item_id: int, payload: ItemPatch):
                    (*updates.values(), item_id))
     _set_tags(item_id, tags)
     _set_categories(item_id, updates.get("category", row["category"]), extra_categories)
-    if {"category", "wash_after_wears"} & set(updates):
-        wash.refresh_status(item_id)
     return _hydrate(db.query_one("SELECT * FROM items WHERE id = ?", (item_id,)))
-
-
-@router.post("/items/{item_id}/status")
-def change_status(item_id: int, payload: StatusIn):
-    if payload.status not in STATUSES:
-        raise HTTPException(400, f"Unknown status: {payload.status}")
-    result = wash.set_status(item_id, payload.status)
-    if not result:
-        raise HTTPException(404, "Item not found")
-    return result
 
 
 @router.delete("/items/{item_id}")
@@ -483,36 +435,6 @@ def delete_item(item_id: int, hard: bool = False):
     db.execute("UPDATE items SET is_active = 0, updated_at = datetime('now') WHERE id = ?",
                (item_id,))
     return {"deleted": item_id, "hard": False}
-
-
-@router.get("/items/{item_id}/care")
-def get_care(item_id: int):
-    return care_out(db.query_one("SELECT * FROM care_instructions WHERE item_id = ?", (item_id,)))
-
-
-@router.put("/items/{item_id}/care")
-def put_care(item_id: int, payload: CareIn):
-    if not db.query_one("SELECT id FROM items WHERE id = ?", (item_id,)):
-        raise HTTPException(404, "Item not found")
-    jobs._apply_care(item_id, {**payload.model_dump(), "raw_symbols": []}, "manual")
-    if payload.notes:
-        db.execute("UPDATE care_instructions SET notes = ? WHERE item_id = ?",
-                   (payload.notes, item_id))
-    return care_out(db.query_one("SELECT * FROM care_instructions WHERE item_id = ?", (item_id,)))
-
-
-@router.post("/items/{item_id}/care-label")
-async def read_care_label(item_id: int, file: UploadFile = File(...)):
-    """Photograph the care label; AI turns the symbols into wash settings."""
-    if not db.query_one("SELECT id FROM items WHERE id = ?", (item_id,)):
-        raise HTTPException(404, "Item not found")
-    if db.get_setting("ai_provider", "none") == "none":
-        raise HTTPException(400, "Reading care labels needs an AI provider. "
-                                 "Enter the care details by hand instead.")
-    data = await file.read()
-    saved = images.save_upload(data, file.filename or "")
-    job_id = jobs.enqueue("care_label", item_id, {"image_path": saved["image_path"]})
-    return {"job_id": job_id, "status": "queued"}
 
 
 @router.post("/items/{item_id}/analyse")
@@ -636,7 +558,6 @@ def create_category(payload: CategoryIn):
     return categories.create(
         key, label, payload.layer,
         warmth=payload.warmth, formality=payload.formality,
-        wash_after_wears=payload.wash_after_wears,
         one_piece=payload.one_piece, takes_belt=payload.takes_belt,
         fit_options=payload.fit_options,
     )
@@ -661,7 +582,7 @@ def delete_category(key: str, move_to: str | None = None):
     """Remove a category. Anything in it has to go somewhere first.
 
     Deleting one that still holds garments would leave them pointing at a name
-    nothing recognises — no layer, so no outfits, no wash threshold. Either name
+    nothing recognises — no layer, so no outfits. Either name
     a category to move them to, or the request comes back saying how many are in
     the way.
     """

@@ -39,9 +39,8 @@ def add(name, category="shirt", warmth=3):
 
 def counters(item_id):
     row = db.query_one(
-        "SELECT total_wears, wears_since_wash, last_worn FROM items WHERE id = ?",
-        (item_id,))
-    return (row["total_wears"], row["wears_since_wash"], row["last_worn"])
+        "SELECT total_wears, last_worn FROM items WHERE id = ?", (item_id,))
+    return (row["total_wears"], row["last_worn"])
 
 
 def test_swapping_an_item_moves_the_counters_with_it():
@@ -49,13 +48,13 @@ def test_swapping_an_item_moves_the_counters_with_it():
     tee, knit, jeans = add("Tee"), add("Knit"), add("Jeans", "bottom")
     wear = log_wear(WearIn(item_ids=[tee, jeans], worn_on="2026-08-10",
                            use_weather=False))["wear"]
-    assert counters(tee) == (1, 1, "2026-08-10")
-    assert counters(knit) == (0, 0, None)
+    assert counters(tee) == (1, "2026-08-10")
+    assert counters(knit) == (0, None)
 
     update_wear(wear["id"], WearPatch(item_ids=[knit, jeans]))
-    assert counters(tee) == (0, 0, None), "removed item kept its wear"
-    assert counters(knit) == (1, 1, "2026-08-10"), "added item not counted"
-    assert counters(jeans) == (1, 1, "2026-08-10"), "unchanged item was touched"
+    assert counters(tee) == (0, None), "removed item kept its wear"
+    assert counters(knit) == (1, "2026-08-10"), "added item not counted"
+    assert counters(jeans) == (1, "2026-08-10"), "unchanged item was touched"
 
 
 def test_unchanged_items_keep_their_history():
@@ -90,7 +89,7 @@ def test_an_unknown_item_is_refused_whole():
         raise AssertionError("expected 400")
     except HTTPException as exc:
         assert exc.status_code == 400
-    assert counters(tee) == (1, 1, "2026-08-10")   # nothing half-applied
+    assert counters(tee) == (1, "2026-08-10")   # nothing half-applied
 
 
 def test_comfort_is_rerecorded_against_the_new_outfit():

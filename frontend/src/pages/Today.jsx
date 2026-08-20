@@ -264,7 +264,6 @@ export default function Today() {
   const meta = useMeta()
   const [occasion, setOccasion] = useLocalState('outfits.occasion', 'everyday')
   const [dayOffset, setDayOffset] = useState(0)
-  const [excludeDirty, setExcludeDirty] = useLocalState('outfits.excludeDirty', true)
   const [useAI, setUseAI] = useLocalState('outfits.useAI', false)
   // The stylist is a Gemini feature. With no provider there is nothing behind
   // the switch, so it is not offered — and a preference left on from when there
@@ -285,12 +284,12 @@ export default function Today() {
 
   const weather = useAsync(() => api.weather(), [])
   const load = useCallback(
-    () => api.suggest({ occasion, count: 3, exclude_dirty: excludeDirty,
+    () => api.suggest({ occasion, count: 3,
                         day_offset: dayOffset, use_ai: wantsAI,
                         pinned: base ? base.items.map((i) => i.id) : undefined }),
-    [occasion, excludeDirty, dayOffset, wantsAI, base?.id]
+    [occasion, dayOffset, wantsAI, base?.id]
   )
-  const suggestions = useAsync(load, [occasion, excludeDirty, dayOffset, wantsAI, base?.id])
+  const suggestions = useAsync(load, [occasion, dayOffset, wantsAI, base?.id])
 
   const refreshWeather = async () => {
     setRefreshing(true)
@@ -328,12 +327,9 @@ export default function Today() {
     setWearing(suggestion.item_ids.join(','))
     try {
       const res = await api.logWear({ item_ids: suggestion.item_ids, occasion })
-      const dirty = res.now_needing_wash?.length
       // Point at where the feedback lives, since that is the whole loop: the
       // warmth calibration only learns from comfort ratings given after a wear.
-      toast(dirty
-        ? `Logged. ${dirty} item${dirty === 1 ? '' : 's'} now need washing. Rate it in History.`
-        : 'Logged. Say how it felt in History and the suggestions calibrate to you.', 'success')
+      toast('Logged. Say how it felt in History and the suggestions calibrate to you.', 'success')
       suggestions.reload(true)
     } catch (e) {
       toast(e.message, 'error')
@@ -390,11 +386,6 @@ export default function Today() {
         title="Suggestions"
         action={
           <>
-            {/* These two change what is suggested, so they belong beside the
-                suggestions rather than in a third row of chips above them. */}
-            <Chip active={excludeDirty} onClick={() => setExcludeDirty(!excludeDirty)}>
-              <Icon name="drop" size={14} /> {excludeDirty ? 'Clean only' : 'Including dirty'}
-            </Chip>
             {aiAvailable && (
               <Chip active={useAI} onClick={() => setUseAI(!useAI)}>
                 <Icon name="sparkle" size={14} /> AI stylist
@@ -437,8 +428,8 @@ export default function Today() {
         {data && !data.suggestions?.length && !data.missing_categories?.length && (
           <EmptyState
             icon="drop"
-            title="Everything is in the wash"
-            hint="Nothing clean matches right now. Turn off “Hiding dirty items” to see options anyway."
+            title="Nothing to suggest"
+            hint="No combination matches right now. Try another occasion, or add a few more pieces."
           />
         )}
       </Section>

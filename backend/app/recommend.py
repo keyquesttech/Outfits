@@ -296,8 +296,7 @@ def resolve_outfit(items: list[dict], weather: dict,
     A saved outfit may hold three tops and two pairs of shoes as options.
     Wearing it means wearing one of each, so every combination is scored against
     the weather and the occasion — the same scorer the suggester uses — and the
-    best one wins. Cleanliness counts too: a needs-wash option loses to a clean
-    one before scoring even starts.
+    best one wins.
     """
     groups: dict[str, list[dict]] = {}
     fixed: list[dict] = []
@@ -310,12 +309,6 @@ def resolve_outfit(items: list[dict], weather: dict,
 
     if all(len(options) == 1 for options in groups.values()):
         return items                       # nothing to choose between
-
-    # Prefer clean options, but never empty a slot over it.
-    for layer, options in groups.items():
-        clean = [i for i in options if not i.get("needs_wash")]
-        if clean:
-            groups[layer] = clean
 
     import itertools
     layers = sorted(groups)
@@ -348,14 +341,10 @@ def resolve_outfit(items: list[dict], weather: dict,
     return best or items
 
 
-def _pools(exclude_dirty: bool, seasons: list[str] | None,
+def _pools(seasons: list[str] | None,
            occasion: str | None = None,
            tag_map: dict[int, set[str]] | None = None) -> dict[str, list[dict]]:
-    clause = "SELECT * FROM items WHERE is_active = 1"
-    params: list = []
-    if exclude_dirty:
-        clause += " AND status NOT IN ('needs_wash','in_wash')"
-    rows = db.query(clause, tuple(params))
+    rows = db.query("SELECT * FROM items WHERE is_active = 1")
     catalogue = categories.by_key()
     tag_map = tag_map or {}
     wanted = OCCASION_TAGS.get((occasion or "").lower(), set())
@@ -378,7 +367,7 @@ def _pools(exclude_dirty: bool, seasons: list[str] | None,
 
 
 def suggest(weather: dict, occasion: str | None = None, count: int = 3,
-            exclude_dirty: bool = True, seasons: list[str] | None = None,
+            seasons: list[str] | None = None,
             samples: int = 600, pinned: list[int] | None = None) -> dict:
     """Sample candidate outfits, score them, return the best distinct few.
 
@@ -387,7 +376,7 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     good ones because the pools are small per layer.
     """
     tag_map = tags_by_item()
-    pools = _pools(exclude_dirty, seasons, occasion, tag_map)
+    pools = _pools(seasons, occasion, tag_map)
     offset = personal_offset()
     apparent = weather.get("apparent_c")
     target = target_warmth(apparent) + offset if apparent is not None else 18

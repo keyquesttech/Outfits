@@ -5,15 +5,6 @@ def photo_url(rel: str | None) -> str | None:
     return f"/photos/{rel}" if rel else None
 
 
-def wash_threshold(item: dict, catalogue: dict | None = None) -> int:
-    explicit = item.get("wash_after_wears")
-    if explicit is not None:
-        return int(explicit)
-    catalogue = catalogue if catalogue is not None else categories.by_key()
-    known = catalogue.get(item.get("category", ""))
-    return int(known["wash_after_wears"]) if known else 3
-
-
 def item_out(row: dict, catalogue: dict | None = None) -> dict:
     """Shape a row for the API.
 
@@ -36,29 +27,12 @@ def item_out(row: dict, catalogue: dict | None = None) -> dict:
     item["water_proof"] = bool(item.get("water_proof"))
     item["is_active"] = bool(item.get("is_active", 1))
 
-    threshold = wash_threshold(item, catalogue)
-    launderable = threshold > 0
-    item["launderable"] = launderable
-    item["wash_threshold"] = threshold
-    item["wears_left"] = max(0, threshold - int(item.get("wears_since_wash") or 0)) if launderable else None
-    item["needs_wash"] = bool(launderable and int(item.get("wears_since_wash") or 0) >= threshold)
-
     item["image_url"] = photo_url(item.get("image_path"))
     item["thumb_url"] = photo_url(item.get("thumb_path")) or photo_url(item.get("image_path"))
     item["cutout_url"] = photo_url(item.get("cutout_path"))
     item["display_url"] = item["cutout_url"] or item["image_url"]
 
     return item
-
-
-def care_out(row: dict | None) -> dict | None:
-    if not row:
-        return None
-    care = dict(row)
-    care["hand_wash_only"] = bool(care.get("hand_wash_only"))
-    care["do_not_wash"] = bool(care.get("do_not_wash"))
-    care["raw_symbols"] = db.loads(care.get("raw_symbols"), [])
-    return care
 
 
 def outfit_out(row: dict, items: list[dict]) -> dict:
@@ -80,7 +54,6 @@ def outfit_out(row: dict, items: list[dict]) -> dict:
                                in warmth_layers.items() if len(vals) > 1}
     formalities = [int(i["formality"]) for i in items if i.get("formality")]
     outfit["formality"] = round(sum(formalities) / len(formalities), 1) if formalities else None
-    outfit["needs_wash"] = any(i.get("needs_wash") for i in items)
     outfit["thumb_url"] = next((i["thumb_url"] for i in items if i.get("thumb_url")), None)
     return outfit
 

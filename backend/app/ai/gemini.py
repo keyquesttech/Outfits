@@ -6,7 +6,7 @@ import json
 import httpx
 
 from .base import (
-    CARE_PROMPT, CARE_SCHEMA, OUTFIT_SCHEMA, Provider, item_prompt, item_schema,
+    OUTFIT_SCHEMA, Provider, item_prompt, item_schema,
 )
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -71,9 +71,6 @@ class GeminiProvider(Provider):
 
     def analyse_item(self, image: bytes, mime: str = "image/jpeg") -> dict | None:
         return self._structured(item_prompt(), item_schema(), image, mime)
-
-    def read_care_label(self, image: bytes, mime: str = "image/jpeg") -> dict | None:
-        return self._structured(CARE_PROMPT, CARE_SCHEMA, image, mime)
 
     def remove_background(self, image: bytes, mime: str = "image/jpeg") -> bytes | None:
         """Best effort. Returns None if the image model is unavailable."""

@@ -7,7 +7,6 @@ import { ItemGrid, ItemPhoto } from '../components/ItemCard.jsx'
 import ItemForm, { itemFormPayload, itemFormState } from '../components/ItemForm.jsx'
 import ImageEditor from '../components/ImageEditor.jsx'
 import { Swatch } from '../components/ColourField.jsx'
-import CareForm, { careFormPayload, careFormState, careIsSet } from '../components/CareForm.jsx'
 import {
   Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Spinner, titleCase,
   useToast,
@@ -26,7 +25,6 @@ function TagSheet({ open, items, onClose, onDone }) {
   const toast = useToast()
   const [index, setIndex] = useState(0)
   const [form, setForm] = useState(() => itemFormState(items[0]))
-  const [care, setCare] = useState(() => careFormState(items[0]?.care))
   const [busy, setBusy] = useState(false)
 
   const item = items[index]
@@ -35,7 +33,6 @@ function TagSheet({ open, items, onClose, onDone }) {
   const goTo = (next) => {
     setIndex(next)
     setForm(itemFormState(items[next]))
-    setCare(careFormState(items[next]?.care))
   }
 
   const finish = () => {
@@ -47,9 +44,6 @@ function TagSheet({ open, items, onClose, onDone }) {
     setBusy(true)
     try {
       await api.updateItem(item.id, itemFormPayload(form))
-      // Only write care when something was actually filled in, so skipping it
-      // does not stamp an empty record over anything AI may have read.
-      if (careIsSet(care)) await api.putCare(item.id, careFormPayload(care))
       if (advance && !last) {
         goTo(index + 1)
       } else {
@@ -109,21 +103,6 @@ function TagSheet({ open, items, onClose, onDone }) {
 
         <ItemForm form={form} setForm={setForm} meta={meta} palette={item.palette} />
 
-        <div className="border-t pt-4" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-sm font-bold">Washing and care</p>
-          <p className="mb-3 mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>
-            Optional, but it is what sorts this into the right laundry load later.
-          </p>
-          <CareForm
-            form={care} setForm={setCare} meta={meta} busy={busy}
-            onScan={async (file) => {
-              try {
-                await api.careLabel(item.id, file)
-                toast('Reading the care label. It will fill in shortly.', 'success')
-              } catch (e) { toast(e.message, 'error') }
-            }}
-          />
-        </div>
       </div>
     </Modal>
   )
@@ -328,7 +307,6 @@ export default function Wardrobe() {
   const q = useDebounced(search, 280)
   const [category, setCategory] = useState('')
   const [subcategory, setSubcategory] = useState('')
-  const [status, setStatus] = useState('')
   const [colour, setColour] = useState('')
   const [sort, setSort] = useLocalState('outfits.sort', 'recent')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -337,13 +315,13 @@ export default function Wardrobe() {
   const [version, setVersion] = useState(0)
 
   const load = useCallback(
-    () => api.items({ q, category, subcategory, status, colour, sort }),
-    [q, category, subcategory, status, colour, sort]
+    () => api.items({ q, category, subcategory, colour, sort }),
+    [q, category, subcategory, colour, sort]
   )
   const { data, loading, error, reload } =
-    useAsync(load, [q, category, subcategory, status, colour, sort])
+    useAsync(load, [q, category, subcategory, colour, sort])
   const items = data?.items || []
-  const filtering = Boolean(q || category || subcategory || status || colour)
+  const filtering = Boolean(q || category || subcategory || colour)
 
   // Subcategories present in what is on screen, same ref trick as the colour
   // rail: picking one narrows the results to itself, and rebuilding the rail
@@ -467,17 +445,6 @@ export default function Wardrobe() {
             ))}
           </div>
         )}
-        {/* Sort used to sit on the end of this row behind a hairline divider,
-            which put an ordering control inside a row of filters and read as one
-            long undifferentiated strip. It lives with the result count now. */}
-        <div className="rail">
-          <Chip active={!status} onClick={() => setStatus('')}>Any status</Chip>
-          {(meta.statuses || []).map((s) => (
-            <Chip key={s} active={status === s} onClick={() => setStatus(status === s ? '' : s)}>
-              {titleCase(s)}
-            </Chip>
-          ))}
-        </div>
         {owned.length > 1 && (
           <div className="rail">
             <Chip active={!colour} onClick={() => setColour('')}>Any colour</Chip>

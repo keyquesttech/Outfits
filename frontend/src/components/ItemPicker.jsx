@@ -92,10 +92,6 @@ export default function ItemPicker({ items = [], picked = [], onToggle, loading 
                       style={on ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 2px var(--accent)' } : undefined}>
                 <div className="relative aspect-[3/4] overflow-hidden">
                   <ItemPhoto item={i} rounded="" />
-                  {i.needs_wash && (
-                    <span className="absolute left-1 top-1 h-2 w-2 rounded-full"
-                          style={{ background: 'var(--bad)' }} title="Needs washing" />
-                  )}
                   {on && (
                     <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2"
                           style={{ background: 'var(--accent)', '--tw-ring-color': 'var(--surface)' }}>

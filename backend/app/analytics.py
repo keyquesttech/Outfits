@@ -11,30 +11,22 @@ def summary() -> dict:
     totals = db.query_one(
         "SELECT COUNT(*) AS total, "
         "SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active, "
-        "SUM(CASE WHEN status IN ('needs_wash','in_wash') THEN 1 ELSE 0 END) AS dirty, "
         "SUM(total_wears) AS wears FROM items"
     ) or {}
     by_category = db.query(
         "SELECT category, COUNT(*) AS count FROM items WHERE is_active = 1 "
         "GROUP BY category ORDER BY count DESC"
     )
-    by_status = db.query(
-        "SELECT status, COUNT(*) AS count FROM items WHERE is_active = 1 GROUP BY status"
-    )
     outfits = db.query_one("SELECT COUNT(*) AS count FROM outfits") or {}
     logs = db.query_one("SELECT COUNT(*) AS count FROM wear_log") or {}
-    washes = db.query_one("SELECT COUNT(*) AS count FROM wash_batches") or {}
     wears = totals.get("wears") or 0
     return {
         "total_items": totals.get("total") or 0,
         "active_items": totals.get("active") or 0,
-        "dirty_items": totals.get("dirty") or 0,
         "total_wears": wears,
         "outfits": outfits.get("count") or 0,
         "wear_logs": logs.get("count") or 0,
-        "wash_loads": washes.get("count") or 0,
         "by_category": by_category,
-        "by_status": by_status,
     }
 
 
@@ -137,29 +129,6 @@ def wear_timeline(weeks: int = 12) -> list[dict]:
     )
 
 
-def wash_stats() -> dict:
-    loads = db.query(
-        "SELECT washed_on, temp_c, program, COUNT(wash_batch_items.item_id) AS items "
-        "FROM wash_batches LEFT JOIN wash_batch_items "
-        "ON wash_batches.id = wash_batch_items.batch_id "
-        "GROUP BY wash_batches.id ORDER BY washed_on DESC LIMIT 30"
-    )
-    by_temp = db.query(
-        "SELECT temp_c, COUNT(*) AS loads FROM wash_batches "
-        "WHERE temp_c IS NOT NULL GROUP BY temp_c ORDER BY temp_c"
-    )
-    most_washed = db.query(
-        "SELECT items.*, COUNT(wash_batch_items.batch_id) AS wash_count FROM items "
-        "JOIN wash_batch_items ON items.id = wash_batch_items.item_id "
-        "GROUP BY items.id ORDER BY wash_count DESC LIMIT 10"
-    )
-    return {
-        "recent_loads": loads,
-        "by_temp": by_temp,
-        "most_washed": [{**item_out(r), "wash_count": r["wash_count"]} for r in most_washed],
-    }
-
-
 def comfort_calibration() -> dict:
     rows = db.query("SELECT verdict, COUNT(*) AS count FROM comfort_feedback GROUP BY verdict")
     labels = {-1: "too cold", 0: "just right", 1: "too hot"}
@@ -202,7 +171,6 @@ def full_report() -> dict:
         "colours": colour_distribution(),
         "combinations": top_combinations(),
         "timeline": wear_timeline(),
-        "wash": wash_stats(),
         "comfort": comfort_calibration(),
         "gaps": gaps(),
     }

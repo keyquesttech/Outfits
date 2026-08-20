@@ -21,7 +21,7 @@ os.environ["OUTFITS_DATA"] = _TMP
 
 from app import categories, db                                   # noqa: E402
 from app import constants                                        # noqa: E402
-from app.serializers import item_out, wash_threshold             # noqa: E402
+from app.serializers import item_out                             # noqa: E402
 
 
 def fresh():
@@ -54,16 +54,6 @@ def test_seed_matches_the_constants_it_replaced():
         assert seeded[key]["one_piece"] == (key in constants.ONE_PIECE_CATEGORIES)
 
 
-def test_never_washed_categories_still_never_wash():
-    """`launderable` replaced a hard-coded set; it has to draw the same line."""
-    fresh()
-    seeded = categories.by_key()
-    for key in constants.NO_WASH_CATEGORIES:
-        assert seeded[key]["launderable"] is False
-        assert wash_threshold({"category": key, "wash_after_wears": None}) == 0
-    assert seeded["shirt"]["launderable"] is True
-
-
 def test_seed_runs_once():
     fresh()
     assert categories.seed(db.get_conn()) == 0
@@ -76,15 +66,14 @@ def test_a_new_category_takes_its_defaults_from_the_layer():
     made = categories.create("gym_kit", "Gym Kit", "outer")
     assert made["layer"] == "outer"
     assert made["warmth"] == 8
-    assert made["wash_after_wears"] == 25
     assert made["fit_options"] == ["fitted", "regular", "loose", "oversized"]
     assert made["is_builtin"] is False
 
 
 def test_explicit_values_beat_the_layer_defaults():
     fresh()
-    made = categories.create("swim", "Swim", "base", warmth=0, wash_after_wears=1)
-    assert (made["warmth"], made["wash_after_wears"]) == (0, 1)
+    made = categories.create("swim", "Swim", "base", warmth=0, formality=1)
+    assert (made["warmth"], made["formality"]) == (0, 1)
 
 
 def test_names_that_differ_only_in_case_are_one_category():

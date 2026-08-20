@@ -145,8 +145,8 @@ export default function ColourField({
 
       {!reading.empty && !reading.known && (
         <p className="mt-1 text-xs" style={{ color: 'var(--warn)' }}>
-          Not a colour the app knows, so it will not group this into a laundry pile
-          or match it in an outfit. It is still saved as typed.
+          Not a colour the app knows, so it will not be matched in an outfit.
+          It is still saved as typed.
         </p>
       )}
       {reading.known && reading.renamed && (

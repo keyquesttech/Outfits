@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Icon, Palette, StatusPill, titleCase } from './ui.jsx'
+import { Icon, Palette, titleCase } from './ui.jsx'
 
 export function ItemPhoto({ item, className = '', rounded = 'rounded-xl', full = false }) {
   // Grids and strips get the ~400px thumbnail; only the detail view needs the
@@ -48,12 +48,6 @@ export default function ItemCard({ item, selected, onSelect, compact = false }) 
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
         <ItemPhoto item={item} rounded="" className="transition duration-300 group-hover:scale-[1.03]" />
-        {item.needs_wash && (
-          <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-2xs font-bold text-white"
-                style={{ background: 'var(--bad)' }}>
-            Needs wash
-          </span>
-        )}
         {selected && (
           <span className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-white"
                 style={{ background: 'var(--accent)' }}>
@@ -70,15 +64,10 @@ export default function ItemCard({ item, selected, onSelect, compact = false }) 
           </span>
           <Palette palette={item.palette} size={12} max={3} />
         </div>
-        {!compact && (
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <StatusPill status={item.status} />
-            {item.launderable && item.wears_left !== null && (
-              <span className="text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
-                {item.wears_left === 0 ? 'wash now' : `${item.wears_left} wear${item.wears_left === 1 ? '' : 's'} left`}
-              </span>
-            )}
-          </div>
+        {!compact && item.total_wears > 0 && (
+          <p className="mt-2 text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
+            worn {item.total_wears}×{item.last_worn ? ` · last ${item.last_worn}` : ''}
+          </p>
         )}
       </div>
     </Wrapper>

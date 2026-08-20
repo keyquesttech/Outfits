@@ -119,7 +119,6 @@ export function itemFormState(item = {}) {
     seasons: item.seasons || [],
     wind_proof: !!item.wind_proof,
     water_proof: !!item.water_proof,
-    wash_after_wears: item.wash_after_wears ?? '',
     notes: item.notes || '',
     tags: (item.tags || []).join(', '),
   }
@@ -131,7 +130,6 @@ export function itemFormPayload(form) {
     ...form,
     warmth: Number(form.warmth),
     formality: Number(form.formality),
-    wash_after_wears: form.wash_after_wears === '' ? null : Number(form.wash_after_wears),
     tags: parseTags(form.tags),
     categories: (form.categories || []).filter((c) => c !== form.category),
   }
@@ -260,7 +258,6 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
   const fieldValues = useAsync(() => api.fieldValues(), [])
   const known = fieldValues.data || {}
   const formalities = (meta.formality_levels || [])
-  const suggestedWash = meta.default_wash_after_wears?.[form.category]
 
   return (
     <div className="space-y-4">
@@ -327,7 +324,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         <p className="-mt-2 text-xs" style={{ color: 'var(--muted)' }}>
           The swatches are read from the photo as a starting point, with the next-closest
           reading offered after "or". What you leave in the two fields above is what outfit
-          matching and the laundry piles actually use.
+          matching actually uses.
         </p>
       )}
 
@@ -372,7 +369,7 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
 
       <OptionRow
         label="Damage"
-        hint="Condition of the garment itself, separate from whether it needs washing."
+        hint="The garment's condition — a mark, a loose thread, a hole."
         options={meta.damage_levels || []}
         isActive={(o) => (form.damage || 'none') === o.key}
         onChange={(o) => setForm({ ...form, damage: o.key })}
@@ -425,14 +422,6 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
         <input className="input" value={form.tags} onChange={set('tags')}
                placeholder="favourite, logo, work" />
       </Field>
-
-      {!compact && (
-        <Field label="Wash after (wears)"
-               hint={`Default for ${meta.category_labels?.[form.category] || titleCase(form.category)}: ${suggestedWash ?? '—'}`}>
-          <input className="input" type="number" min="0" value={form.wash_after_wears}
-                 onChange={set('wash_after_wears')} placeholder="use default" />
-        </Field>
-      )}
 
       {!compact && (
         <Field label="Notes">

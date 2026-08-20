@@ -46,9 +46,7 @@ export const api = {
   createItem: (body) => post('/api/items', body),
   updateItem: (id, body) => patch(`/api/items/${id}`, body),
   deleteItem: (id, hard = false) => del(`/api/items/${id}${hard ? '?hard=true' : ''}`),
-  setStatus: (id, status) => post(`/api/items/${id}/status`, { status }),
   analyse: (id, kind = 'analyse_item') => post(`/api/items/${id}/analyse?kind=${kind}`),
-  putCare: (id, body) => put(`/api/items/${id}/care`, body),
   rescanItemColours: (id) => post(`/api/items/${id}/rescan-colours`),
   rescanColours: (overwrite = false) =>
     post(`/api/colours/rescan?overwrite=${overwrite}`),
@@ -65,11 +63,6 @@ export const api = {
     form.append('analyse', String(analyse))
     return request(`/api/items/${id}/photo`, { method: 'POST', body: form })
   },
-  careLabel: (id, file) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request(`/api/items/${id}/care-label`, { method: 'POST', body: form })
-  },
 
   outfits: (params) => get('/api/outfits' + qs(params)),
   outfit: (id) => get(`/api/outfits/${id}`),
@@ -85,9 +78,6 @@ export const api = {
   deleteWear: (id) => del(`/api/wear/${id}`),
   removeWearItem: (wearId, itemId) => del(`/api/wear/${wearId}/items/${itemId}`),
 
-  laundry: () => get('/api/laundry/plan'),
-  wash: (body) => post('/api/laundry/wash', body),
-  washHistory: () => get('/api/laundry/history'),
 
   weather: (refresh = false) => get('/api/weather' + (refresh ? '?refresh=true' : '')),
   weatherProviders: () => get('/api/weather/providers'),

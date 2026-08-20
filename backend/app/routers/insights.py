@@ -35,11 +35,6 @@ def combinations(limit: int = 10):
     return {"combinations": analytics.top_combinations(limit)}
 
 
-@router.get("/wash")
-def wash_stats():
-    return analytics.wash_stats()
-
-
 @router.get("/timeline")
 def timeline(weeks: int = 12):
     return {"timeline": analytics.wear_timeline(weeks)}

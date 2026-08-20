@@ -22,12 +22,8 @@ CREATE TABLE IF NOT EXISTS items (
   image_path        TEXT,
   thumb_path        TEXT,
   cutout_path       TEXT,
-  status            TEXT NOT NULL DEFAULT 'clean',
-  wears_since_wash  INTEGER NOT NULL DEFAULT 0,
-  wash_after_wears  INTEGER,
   total_wears       INTEGER NOT NULL DEFAULT 0,
   last_worn         TEXT,
-  last_washed       TEXT,
   notes             TEXT,
   ai_provider       TEXT,
   ai_confidence     REAL,
@@ -36,25 +32,7 @@ CREATE TABLE IF NOT EXISTS items (
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);
-CREATE INDEX IF NOT EXISTS idx_items_status   ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_active   ON items(is_active);
-
-CREATE TABLE IF NOT EXISTS care_instructions (
-  item_id        INTEGER PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
-  wash_temp      INTEGER,
-  wash_cycle     TEXT,
-  hand_wash_only INTEGER NOT NULL DEFAULT 0,
-  do_not_wash    INTEGER NOT NULL DEFAULT 0,
-  tumble_dry     TEXT,
-  iron_temp      TEXT,
-  bleach         TEXT,
-  dry_clean      TEXT,
-  colour_group   TEXT,
-  raw_symbols    TEXT,
-  source         TEXT,
-  notes          TEXT,
-  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
 
 CREATE TABLE IF NOT EXISTS outfits (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,24 +78,8 @@ CREATE TABLE IF NOT EXISTS wear_log_items (
 );
 CREATE INDEX IF NOT EXISTS idx_wear_log_items_item ON wear_log_items(item_id);
 
-CREATE TABLE IF NOT EXISTS wash_batches (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  washed_on  TEXT NOT NULL,
-  program    TEXT,
-  temp_c     INTEGER,
-  notes      TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS wash_batch_items (
-  batch_id INTEGER NOT NULL REFERENCES wash_batches(id) ON DELETE CASCADE,
-  item_id  INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
-  PRIMARY KEY (batch_id, item_id)
-);
-CREATE INDEX IF NOT EXISTS idx_wash_batch_items_item ON wash_batch_items(item_id);
-
 -- Extra categories an item also counts as, beyond items.category. The primary
--- one still decides its layer, wash defaults and how the outfit builder uses it,
+-- one still decides its layer and how the outfit builder uses it,
 -- because a garment can only occupy one slot in an outfit at a time.
 CREATE TABLE IF NOT EXISTS item_categories (
   item_id  INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -136,7 +98,6 @@ CREATE TABLE IF NOT EXISTS categories (
   layer            TEXT NOT NULL,
   warmth           INTEGER NOT NULL DEFAULT 3,
   formality        INTEGER NOT NULL DEFAULT 3,
-  wash_after_wears INTEGER NOT NULL DEFAULT 3,
   one_piece        INTEGER NOT NULL DEFAULT 0,
   takes_belt       INTEGER NOT NULL DEFAULT 0,
   fit_options      TEXT,

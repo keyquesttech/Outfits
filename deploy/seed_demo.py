@@ -4,7 +4,7 @@ you photograph anything real.
 
     .venv/bin/python deploy/seed_demo.py --url http://localhost
 
-Generates garment images, care instructions, saved outfits, and six weeks of
+Generates garment images, saved outfits, and six weeks of
 wear history with comfort ratings so the analytics and calibration panels have
 something to show. Use --wipe to clear an existing demo first.
 """
@@ -58,17 +58,6 @@ FITS = {
     "Pale blue oxford shirt": "regular",
     "Grey marl t-shirt": "regular",
     "White t-shirt": "oversized",
-}
-
-CARE = {
-    "shirt": dict(wash_temp=40, wash_cycle="normal", tumble_dry="low", iron_temp="medium", colour_group="lights"),
-    "top": dict(wash_temp=30, wash_cycle="normal", tumble_dry="low", iron_temp="low", colour_group="lights"),
-    "knitwear": dict(wash_temp=30, wash_cycle="wool", tumble_dry="no", iron_temp="low", colour_group="darks"),
-    "outerwear": dict(wash_temp=None, wash_cycle=None, dry_clean="any", tumble_dry="no", colour_group="darks"),
-    "bottom": dict(wash_temp=30, wash_cycle="normal", tumble_dry="no", iron_temp="medium", colour_group="darks"),
-    "sock": dict(wash_temp=40, wash_cycle="normal", tumble_dry="medium", colour_group="darks"),
-    "scarf": dict(wash_temp=30, wash_cycle="wool", tumble_dry="no", colour_group="darks"),
-    "headwear": dict(wash_temp=30, wash_cycle="wool", tumble_dry="no", colour_group="darks"),
 }
 
 OUTFIT_PLANS = [
@@ -199,8 +188,6 @@ def main():
         fit = FITS.get(name)
         if fit:
             c.patch(f"/api/items/{item['id']}", json={"fit": fit})
-        if cat in CARE:
-            c.put(f"/api/items/{item['id']}/care", json=CARE[cat])
         print(f"  {name}  ({item['colour_primary']})")
 
     print("Saving outfits…")
@@ -267,21 +254,9 @@ def main():
         c.post("/api/wear", json=payload)
         logged += 1
 
-        # Run the laundry roughly weekly.
-        if days_ago % 7 == 1:
-            plan_now = c.get("/api/laundry/plan").json()
-            for load in plan_now["loads"]:
-                if load["machine_wash"]:
-                    c.post("/api/laundry/wash", json={
-                        "item_ids": [i["id"] for i in load["items"]],
-                        "washed_on": day.isoformat(),
-                        "program": load["group"], "temp_c": load["temp_c"],
-                        "notes": load["label"],
-                    })
-
     summary = c.get("/api/analytics/summary").json()
     print(f"\nDone. {summary['active_items']} items, {logged} days logged, "
-          f"{summary['total_wears']} wears, {summary['wash_loads']} wash loads.")
+          f"{summary['total_wears']} wears.")
     print(f"Open {args.url}")
     return 0
 
