@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
+import ItemPicker from '../components/ItemPicker.jsx'
 import {
   Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Section, Spinner,
   titleCase, useConfirm, useToast,
@@ -26,123 +27,59 @@ function dayLabel(iso) {
 
 const TODAY = () => new Date().toISOString().slice(0, 10)
 
-/**
- * Move a wear to another day, and say something about it.
- *
- * Back-dating is the point of this: an outfit worn last Tuesday is only worth
- * recording if it is scored against last Tuesday's weather, so changing the date
- * looks that day's real conditions up rather than leaving this afternoon's
- * stamped on it. The comfort verdict is re-recorded against the new day too.
- */
-function Details({ wear, busy, onSave }) {
-  const [day, setDay] = useState(wear.worn_on)
-  const [notes, setNotes] = useState(wear.notes || '')
-  const [preview, setPreview] = useState(null)
-
-  // Show what the weather did on the day being chosen, before committing to it.
-  useEffect(() => {
-    let live = true
-    if (!day || day === wear.worn_on) { setPreview(null); return }
-    api.weatherOn(day)
-      .then((w) => { if (live) setPreview(w) })
-      .catch(() => { if (live) setPreview(null) })
-    return () => { live = false }
-  }, [day, wear.worn_on])
-
-  const dirty = day !== wear.worn_on || notes !== (wear.notes || '')
-
-  return (
-    <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label="Worn on">
-          <input
-            className="input !w-auto" type="date" value={day} max={TODAY()}
-            onChange={(e) => setDay(e.target.value)}
-          />
-        </Field>
-        {preview && (
-          <p className="pb-2 text-xs" style={{ color: 'var(--muted)' }}>
-            {preview.available
-              ? `That day: ${preview.condition?.label || '—'}, felt like ${Math.round(preview.apparent_c)} °C`
-              : preview.reason}
-          </p>
-        )}
-      </div>
-
-      <Field label="Notes"
-             hint="Anything the tags cannot hold. The AI stylist reads these alongside the wardrobe.">
-        <textarea
-          className="textarea" rows={2} value={notes}
-          placeholder="Collar felt tight · got soaked · same meeting as last week"
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </Field>
-
-      {dirty && (
-        <div className="flex gap-2">
-          <button className="btn btn-primary" disabled={busy}
-                  onClick={() => onSave({ worn_on: day, notes: notes.trim() || null })}>
-            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
-          </button>
-          <button className="btn" disabled={busy}
-                  onClick={() => { setDay(wear.worn_on); setNotes(wear.notes || '') }}>
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
 
 /**
- * Log an outfit worn on a past day.
+ * Log an outfit worn on a past day, or edit one already logged.
  *
- * This is how the calibration gets trained retroactively: pick the pieces, pick
- * the day, and the wear is recorded against the weather that day actually had —
- * looked up from the historical record, not stamped with this afternoon's.
+ * The same sheet either way, in the outfit builder's format: date with that
+ * day's weather previewed, occasion, the shared item picker with its category
+ * filter, notes. Editing replaces the items — counters follow the diff, so a
+ * removed piece gets its wear back and an added one is counted.
  */
-function AddPastOutfit({ open, onClose, onDone }) {
+function WearSheet({ existing, onClose, onDone }) {
   const toast = useToast()
-  const [day, setDay] = useState(TODAY())
-  const [occasion, setOccasion] = useState('everyday')
-  const [notes, setNotes] = useState('')
-  const [selected, setSelected] = useState([])
-  const [query, setQuery] = useState('')
+  const [day, setDay] = useState(existing?.worn_on || TODAY())
+  const [occasion, setOccasion] = useState(existing?.occasion || 'everyday')
+  const [notes, setNotes] = useState(existing?.notes || '')
+  const [picked, setPicked] = useState(() => (existing?.items || []).map((i) => i.id))
   const [preview, setPreview] = useState(null)
   const [busy, setBusy] = useState(false)
   const wardrobe = useAsync(() => api.items({ limit: 500 }), [])
 
+  const toggle = (id) =>
+    setPicked((sel) => sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
+
   useEffect(() => {
     let live = true
-    if (!day || day === TODAY()) { setPreview(null); return }
+    const unchanged = existing ? day === existing.worn_on : day === TODAY()
+    if (!day || unchanged) { setPreview(null); return }
     api.weatherOn(day)
       .then((w) => { if (live) setPreview(w) })
       .catch(() => { if (live) setPreview(null) })
     return () => { live = false }
-  }, [day])
-
-  const items = wardrobe.data?.items || []
-  const needle = query.trim().toLowerCase()
-  const shown = needle
-    ? items.filter((i) =>
-        `${i.name} ${i.brand || ''} ${i.subcategory || ''}`.toLowerCase().includes(needle))
-    : items
-  const toggle = (id) =>
-    setSelected((sel) => sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id])
+  }, [day, existing])
 
   const save = async () => {
     setBusy(true)
     try {
-      const res = await api.logWear({
-        item_ids: selected, worn_on: day, occasion,
-        notes: notes.trim() || undefined,
-      })
-      const felt = res.wear.apparent_c
-      toast(felt != null
-        ? `Logged for ${res.wear.worn_on} — that day felt like ${Math.round(felt)} °C.`
-        : `Logged for ${res.wear.worn_on}. No weather record for that day.`, 'success')
+      let res
+      if (existing) {
+        res = await api.updateWear(existing.id, {
+          worn_on: day, occasion, notes: notes.trim() || null, item_ids: picked,
+        })
+        toast(day !== existing.worn_on && res.wear.apparent_c != null
+          ? `Moved to ${res.wear.worn_on}, scored against that day at ${Math.round(res.wear.apparent_c)} °C.`
+          : 'Wear updated.', 'success')
+      } else {
+        res = await api.logWear({
+          item_ids: picked, worn_on: day, occasion, notes: notes.trim() || undefined,
+        })
+        const felt = res.wear.apparent_c
+        toast(felt != null
+          ? `Logged for ${res.wear.worn_on} — that day felt like ${Math.round(felt)} °C.`
+          : `Logged for ${res.wear.worn_on}. No weather record for that day.`, 'success')
+      }
       onDone()
       onClose()
     } catch (e) { toast(e.message, 'error') } finally { setBusy(false) }
@@ -150,14 +87,15 @@ function AddPastOutfit({ open, onClose, onDone }) {
 
   return (
     <Modal
-      open={open} onClose={busy ? () => {} : onClose} wide title="Log a past outfit"
+      open onClose={busy ? () => {} : onClose} wide
+      title={existing ? 'Edit wear' : 'Log a past outfit'}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
           <button className="btn btn-primary" onClick={save}
-                  disabled={busy || !selected.length || !day}>
+                  disabled={busy || !picked.length || !day}>
             {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
-            Log {selected.length || ''} item{selected.length === 1 ? '' : 's'}
+            {existing ? 'Save' : `Log ${picked.length || ''} item${picked.length === 1 ? '' : 's'}`}
           </button>
         </>
       }
@@ -169,13 +107,15 @@ function AddPastOutfit({ open, onClose, onDone }) {
                    onChange={(e) => setDay(e.target.value)} />
           </Field>
           <p className="pb-2 text-xs" style={{ color: 'var(--muted)' }}>
-            {day === TODAY()
-              ? "Today — the live weather will be attached."
-              : preview
-                ? preview.available
-                  ? `That day: ${preview.condition?.label || '—'}, felt like ${Math.round(preview.apparent_c)} °C`
-                  : preview.reason
-                : 'Looking that day up…'}
+            {preview
+              ? preview.available
+                ? `That day: ${preview.condition?.label || '—'}, felt like ${Math.round(preview.apparent_c)} °C`
+                : preview.reason
+              : existing
+                ? existing.apparent_c != null
+                  ? `Logged against ${Math.round(existing.apparent_c)} °C`
+                  : ''
+                : day === TODAY() ? "Today — the live weather will be attached." : 'Looking that day up…'}
           </p>
         </div>
 
@@ -190,42 +130,8 @@ function AddPastOutfit({ open, onClose, onDone }) {
         </Field>
 
         <Field label="What was worn">
-          <input className="input mb-2" placeholder="Filter by name, brand or type…"
-                 value={query} onChange={(e) => setQuery(e.target.value)} />
-          {wardrobe.loading && !wardrobe.data ? (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-              {Array.from({ length: 5 }).map((_, i) =>
-                <div key={i} className="skeleton aspect-[3/4] rounded-lg" />)}
-            </div>
-          ) : (
-            <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-5">
-              {shown.map((i) => {
-                const on = selected.includes(i.id)
-                return (
-                  <button key={i.id} type="button" onClick={() => toggle(i.id)}
-                          className="text-left" title={i.name}>
-                    <div className="relative aspect-[3/4] overflow-hidden rounded-lg"
-                         style={on ? { boxShadow: '0 0 0 2px var(--accent)' } : undefined}>
-                      <ItemPhoto item={i} rounded="rounded-lg" />
-                      {on && (
-                        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2"
-                              style={{ background: 'var(--accent)', '--tw-ring-color': 'var(--surface)' }}>
-                          <Icon name="check" size={12} />
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 truncate text-2xs font-medium">{i.name}</p>
-                  </button>
-                )
-              })}
-              {!shown.length && (
-                <p className="col-span-full py-4 text-center text-sm"
-                   style={{ color: 'var(--muted)' }}>
-                  Nothing matches.
-                </p>
-              )}
-            </div>
-          )}
+          <ItemPicker items={wardrobe.data?.items || []} picked={picked}
+                      onToggle={toggle} loading={wardrobe.loading && !wardrobe.data} />
         </Field>
 
         <Field label="Notes" hint="Anything worth remembering. The AI stylist reads these.">
@@ -314,8 +220,7 @@ function Feedback({ wear, onSave, busy }) {
 }
 
 
-function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
-  const [editing, setEditing] = useState(false)
+function WearCard({ wear, busy, onDeleteWear, onEdit, onFeedback }) {
   const working = busy === wear.id
 
   return (
@@ -341,10 +246,10 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
         </div>
         <button
           className="btn btn-ghost btn-icon" disabled={working}
-          title="Change the date, add notes, or remove an item"
-          onClick={() => setEditing((v) => !v)}
+          title="Edit this wear — date, items, occasion, notes"
+          onClick={() => onEdit(wear)}
         >
-          {editing ? <Icon name="check" size={16} /> : <Icon name="edit" size={16} />}
+          <Icon name="edit" size={16} />
         </button>
         <button
           className="btn btn-ghost btn-icon" disabled={working}
@@ -358,44 +263,19 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
       {wear.items.length > 0 && (
         <div className="scroll-x mt-2.5 flex gap-2">
           {wear.items.map((item) => (
-            <div key={item.id} className="relative w-20 shrink-0">
-              <Link to={`/wardrobe/${item.id}`}>
-                <div className="aspect-[3/4] overflow-hidden rounded-lg">
-                  <ItemPhoto item={item} rounded="rounded-lg" />
-                </div>
-                <p className="mt-1 truncate text-2xs">{item.name}</p>
-              </Link>
-              {editing && (
-                // Inside the frame, like every other badge in the app. Hung
-                // outside on a negative offset it floated in the gap between
-                // two photos and read as belonging to neither.
-                <button
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full ring-2"
-                  style={{ background: 'var(--bad)', color: '#fff', '--tw-ring-color': 'var(--surface)' }}
-                  aria-label={`Remove ${item.name} from this wear`}
-                  disabled={working}
-                  onClick={() => onRemoveItem(wear, item)}
-                >
-                  <Icon name="close" size={12} />
-                </button>
-              )}
-            </div>
+            <Link key={item.id} to={`/wardrobe/${item.id}`} className="w-20 shrink-0">
+              <div className="aspect-[3/4] overflow-hidden rounded-lg">
+                <ItemPhoto item={item} rounded="rounded-lg" />
+              </div>
+              <p className="mt-1 truncate text-2xs">{item.name}</p>
+            </Link>
           ))}
         </div>
       )}
 
-      {editing && (
-        <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
-          Removing one item puts only that item's wear count back. Take the last one out and
-          the whole entry goes.
-        </p>
+      {wear.notes && (
+        <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{wear.notes}</p>
       )}
-
-      {editing
-        ? <Details wear={wear} busy={working} onSave={(patch) => onFeedback(wear, patch)} />
-        : wear.notes && (
-            <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{wear.notes}</p>
-          )}
 
       <Feedback wear={wear} busy={working} onSave={(patch) => onFeedback(wear, patch)} />
     </div>
@@ -408,6 +288,7 @@ export default function History() {
   const [limit, setLimit] = useState(60)
   const [busy, setBusy] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [editingWear, setEditingWear] = useState(null)
   const { data, loading, error, reload } = useAsync(() => api.wears({ limit }), [limit])
 
   const wears = data?.wears || []
@@ -443,15 +324,6 @@ export default function History() {
           ? `Noted. Your warmth offset is now ${res.personal_offset > 0 ? '+' : ''}${res.personal_offset}.`
           : 'Noted.', 'success')
       }
-      reload(true)
-    } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
-  }
-
-  const removeItem = async (wear, item) => {
-    setBusy(wear.id)
-    try {
-      await api.removeWearItem(wear.id, item.id)
-      toast(`${item.name} taken out of that wear.`, 'success')
       reload(true)
     } catch (e) { toast(e.message, 'error') } finally { setBusy(null) }
   }
@@ -497,7 +369,7 @@ export default function History() {
                 {day.wears.map((wear) => (
                   <WearCard
                     key={wear.id} wear={wear} busy={busy}
-                    onDeleteWear={deleteWear} onRemoveItem={removeItem}
+                    onDeleteWear={deleteWear} onEdit={setEditingWear}
                     onFeedback={saveFeedback}
                   />
                 ))}
@@ -514,7 +386,11 @@ export default function History() {
       )}
 
       {adding && (
-        <AddPastOutfit open onClose={() => setAdding(false)} onDone={() => reload(true)} />
+        <WearSheet onClose={() => setAdding(false)} onDone={() => reload(true)} />
+      )}
+      {editingWear && (
+        <WearSheet existing={editingWear} onClose={() => setEditingWear(null)}
+                   onDone={() => reload(true)} />
       )}
     </div>
   )

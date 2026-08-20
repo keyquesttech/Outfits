@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
+import ItemPicker from '../components/ItemPicker.jsx'
 import {
   Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Section, Spinner,
   titleCase, useConfirm, useToast,
@@ -19,7 +20,6 @@ function Builder({ open, onClose, onSaved, existing, bases = [] }) {
   const [occasion, setOccasion] = useState(existing?.occasion || 'everyday')
   const [picked, setPicked] = useState(() => (existing?.items || []).map((i) => i.id))
   const [isBase, setIsBase] = useState(!!existing?.is_base)
-  const [layer, setLayer] = useState('top')
   const [busy, setBusy] = useState(false)
 
   // A base seeds a new outfit: its pieces come in already picked, and the rest
@@ -31,11 +31,6 @@ function Builder({ open, onClose, onSaved, existing, bases = [] }) {
   }
 
   const items = data?.items || []
-  const byLayer = useMemo(() => {
-    const map = {}
-    items.forEach((i) => { (map[i.layer] ||= []).push(i) })
-    return map
-  }, [items])
   const chosen = items.filter((i) => picked.includes(i.id))
   const warmth = chosen
     .filter((i) => ['bottom', 'top', 'mid', 'outer', 'footwear'].includes(i.layer))
@@ -100,52 +95,12 @@ function Builder({ open, onClose, onSaved, existing, bases = [] }) {
         </div>
 
         {chosen.length > 0 && (
-          <div className="card px-3 py-3">
-            <div className="flex items-center justify-between">
-              <p className="label">Picked · {chosen.length}</p>
-              <p className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>total warmth {warmth}</p>
-            </div>
-            <div className="scroll-x mt-2 flex gap-2">
-              {chosen.map((i) => (
-                <button key={i.id} onClick={() => toggle(i.id)} className="relative w-16 shrink-0" title="Remove">
-                  <div className="aspect-[3/4] overflow-hidden rounded-lg"><ItemPhoto item={i} rounded="rounded-lg" /></div>
-                  <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full text-white ring-2"
-                        style={{ background: 'var(--bad)', '--tw-ring-color': 'var(--surface)' }}>
-                    <Icon name="close" size={12} />
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+            Total warmth {warmth}
+          </p>
         )}
 
-        <div className="rail">
-          {(meta.layers || []).map((l) => (
-            <Chip key={l} active={layer === l} onClick={() => setLayer(l)}>
-              {titleCase(l)} {byLayer[l]?.length ? `(${byLayer[l].length})` : ''}
-            </Chip>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-          {(byLayer[layer] || []).map((i) => (
-            <button key={i.id} onClick={() => toggle(i.id)}
-                    className="card overflow-hidden text-left"
-                    style={picked.includes(i.id) ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 2px var(--accent)' } : undefined}>
-              <div className="relative aspect-[3/4] overflow-hidden">
-                <ItemPhoto item={i} rounded="" />
-                {i.needs_wash && <span className="absolute left-1 top-1 h-2 w-2 rounded-full" style={{ background: 'var(--bad)' }} />}
-              </div>
-              <p className="truncate px-1.5 py-1 text-2xs font-medium">{i.name}</p>
-            </button>
-          ))}
-          {!(byLayer[layer] || []).length && (
-            <p className="col-span-full py-6 text-center text-sm"
-               style={{ color: 'var(--muted)' }}>
-              Nothing in {titleCase(layer)} yet.
-            </p>
-          )}
-        </div>
+        <ItemPicker items={items} picked={picked} onToggle={toggle} loading={!data} />
       </div>
     </Modal>
   )

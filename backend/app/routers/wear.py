@@ -202,6 +202,38 @@ def update_wear(wear_id: int, payload: WearPatch):
         else:
             offset = _record_comfort(wear_id, row, int(verdict))
 
+    # Replacing the items is a diff, not a rewrite: only what actually changed
+    # touches the wear counters, so the unchanged pieces keep their history.
+    items_changed = False
+    affected: set[int] = set()
+    if fields.get("item_ids") is not None:
+        new_ids = list(dict.fromkeys(int(i) for i in fields.pop("item_ids")))
+        if not new_ids:
+            raise HTTPException(400, "A wear needs at least one item — delete the "
+                                     "entry instead of emptying it")
+        found = {i["id"] for i in load_items(new_ids)}
+        missing = sorted(set(new_ids) - found)
+        if missing:
+            raise HTTPException(400, f"Unknown item id(s): {missing}")
+        old_ids = [r["item_id"] for r in db.query(
+            "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))]
+        added = [i for i in new_ids if i not in set(old_ids)]
+        removed = [i for i in old_ids if i not in set(new_ids)]
+        if added or removed:
+            items_changed = True
+            affected = set(old_ids) | set(new_ids)
+            for item_id in removed:
+                db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ? AND item_id = ?",
+                           (wear_id, item_id))
+            db.executemany(
+                "INSERT OR IGNORE INTO wear_log_items(wear_log_id, item_id) VALUES (?,?)",
+                [(wear_id, i) for i in added])
+            wash.undo_wear(removed)
+            worn_on_target = fields.get("worn_on") or row["worn_on"]
+            wash.register_wear(added, worn_on_target)
+    else:
+        fields.pop("item_ids", None)
+
     refresh_weather = fields.pop("refresh_weather", True)
     updates = {k: v for k, v in fields.items()
                if k in ("rating", "occasion", "notes", "worn_on")}
@@ -223,12 +255,13 @@ def update_wear(wear_id: int, payload: WearPatch):
         sets = ", ".join(f"{k} = ?" for k in updates)
         db.execute(f"UPDATE wear_log SET {sets} WHERE id = ?", (*updates.values(), wear_id))
 
-    if moved:
-        ids = [r["item_id"] for r in db.query(
-            "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))]
-        _refresh_last_worn(ids)
-        # A comfort verdict was given against the old day's weather. Re-record it
-        # against the new one so the calibration is not learning from a mismatch.
+    if moved or items_changed:
+        ids = set(r["item_id"] for r in db.query(
+            "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)))
+        _refresh_last_worn(sorted(ids | affected))
+        # The comfort verdict was given against the old day's weather and the
+        # old outfit's warmth; both may just have changed under it. Re-record it
+        # so the calibration is not learning from a mismatch.
         fresh = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))
         if fresh.get("comfort_rating") is not None:
             offset = _record_comfort(wear_id, fresh, int(fresh["comfort_rating"]))

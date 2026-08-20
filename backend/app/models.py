@@ -113,8 +113,11 @@ class WearIn(BaseModel):
 
 
 class WearPatch(BaseModel):
-    """Feedback on a wear that has already been logged, and its date."""
+    """Feedback on a wear that has already been logged, its date, and its items."""
     worn_on: str | None = None
+    # Full replacement of what was worn. Counters follow: removed items get
+    # their wear back, added ones are counted.
+    item_ids: list[int] | None = None
     # Set when moving a wear to a different day: re-read that day's weather.
     refresh_weather: bool = True
     comfort_rating: int | None = Field(default=None, ge=-1, le=1)
