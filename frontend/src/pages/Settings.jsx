@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
+import { useMeta } from '../App.jsx'
 import { useAsync, useAutoSave, useDebounced, useLocalState } from '../hooks.js'
 import { applyTheme } from '../theme.js'
 import CategoryManager from '../components/CategoryManager.jsx'
@@ -463,6 +464,7 @@ function ColourMaintenance() {
 
 export default function Settings() {
   const toast = useToast()
+  const meta = useMeta()
   const { data, loading, error, reload } = useAsync(() => api.settings(), [])
   const jobs = useAsync(() => api.jobs(), [])
   const [form, setForm] = useState(null)
@@ -489,6 +491,11 @@ export default function Settings() {
       setForm((f) => ({ ...f, ...Object.fromEntries(secrets.map((k) => [k, ''])) }))
     }
     await reload(true)
+    // Turning a provider on or off changes what other pages should offer — the
+    // AI stylist on Today is only worth a control when there is a key behind it.
+    if (Object.keys(values).some((k) => k.startsWith("ai_") || k.endsWith("_api_key"))) {
+      meta.reloadMeta?.()
+    }
     setTestResult(null)
   })
 

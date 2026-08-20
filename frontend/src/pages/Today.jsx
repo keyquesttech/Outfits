@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
+import { useMeta } from '../App.jsx'
 import { useAsync, useLocalState } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
@@ -234,19 +235,26 @@ function SuggestionCard({ suggestion, index, onWear, busy }) {
 
 export default function Today() {
   const toast = useToast()
+  const meta = useMeta()
   const [occasion, setOccasion] = useLocalState('outfits.occasion', 'everyday')
   const [dayOffset, setDayOffset] = useState(0)
   const [excludeDirty, setExcludeDirty] = useLocalState('outfits.excludeDirty', true)
   const [useAI, setUseAI] = useLocalState('outfits.useAI', false)
+  // The stylist is a Gemini feature. With no provider there is nothing behind
+  // the switch, so it is not offered — and a preference left on from when there
+  // was one does not keep asking for a suggestion that cannot be made.
+  const aiAvailable = Boolean(meta.ai?.available)
+  const wantsAI = useAI && aiAvailable
   const [wearing, setWearing] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const weather = useAsync(() => api.weather(), [])
   const load = useCallback(
-    () => api.suggest({ occasion, count: 3, exclude_dirty: excludeDirty, day_offset: dayOffset, use_ai: useAI }),
-    [occasion, excludeDirty, dayOffset, useAI]
+    () => api.suggest({ occasion, count: 3, exclude_dirty: excludeDirty,
+                        day_offset: dayOffset, use_ai: wantsAI }),
+    [occasion, excludeDirty, dayOffset, wantsAI]
   )
-  const suggestions = useAsync(load, [occasion, excludeDirty, dayOffset, useAI])
+  const suggestions = useAsync(load, [occasion, excludeDirty, dayOffset, wantsAI])
 
   const refreshWeather = async () => {
     setRefreshing(true)
@@ -294,9 +302,11 @@ export default function Today() {
           <Chip active={excludeDirty} onClick={() => setExcludeDirty(!excludeDirty)}>
             <Icon name="drop" size={13} /> {excludeDirty ? 'Hiding dirty items' : 'Including dirty items'}
           </Chip>
-          <Chip active={useAI} onClick={() => setUseAI(!useAI)}>
-            <Icon name="sparkle" size={13} /> AI stylist {useAI ? 'on' : 'off'}
-          </Chip>
+          {aiAvailable && (
+            <Chip active={useAI} onClick={() => setUseAI(!useAI)}>
+              <Icon name="sparkle" size={13} /> AI stylist {useAI ? 'on' : 'off'}
+            </Chip>
+          )}
         </div>
       </div>
 
@@ -341,7 +351,7 @@ export default function Today() {
         )}
       </Section>
 
-      {data?.ai && (
+      {aiAvailable && data?.ai && (
         <Section title="AI stylist">
           {data.ai.available ? (
             <div className="card px-4 py-4">

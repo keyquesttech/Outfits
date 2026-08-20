@@ -3,6 +3,7 @@ import re
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from .. import categories, colours, config, db, images, jobs, wash
+from ..ai import get_provider
 from ..constants import (
     BLEACH, COLOUR_GROUPS, DAMAGE_KEYS, DAMAGE_LEVELS, DRY_CLEAN,
     FORMALITY_LEVELS, IRON_TEMP, LAYER_ORDER, PATTERNS, SEASONS, STATUSES,
@@ -32,7 +33,12 @@ def meta():
     """
     catalogue = categories.all_categories()
     in_use = categories.counts()
+    # Whether AI is usable at all, so the UI can leave out the controls that
+    # only do something with a key behind them rather than offering a button
+    # whose whole result is "set up AI".
+    provider = get_provider()
     return {
+        "ai": {"provider": provider.name, "available": provider.available},
         "categories": [c["key"] for c in catalogue],
         "category_list": [{**c, "count": in_use.get(c["key"], 0)} for c in catalogue],
         "category_layers": {c["key"]: c["layer"] for c in catalogue},
