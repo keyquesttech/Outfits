@@ -53,7 +53,7 @@ function CategorySheet({ open, category, layers, onClose, onSaved }) {
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
           <button className="btn btn-primary" onClick={save} disabled={busy}>
-            {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />}
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
             {editing ? 'Save' : 'Add'}
           </button>
         </>
@@ -100,9 +100,9 @@ function CategorySheet({ open, category, layers, onClose, onSaved }) {
         </div>
 
         {!editing && (
-          <button type="button" className="btn btn-ghost !px-1 text-xs"
+          <button type="button" className="btn btn-link"
                   onClick={() => setAdvanced((v) => !v)}>
-            <Icon name="chevron" size={13}
+            <Icon name="chevron" size={14}
                   style={{ transform: advanced ? 'rotate(180deg)' : 'none' }} />
             {advanced ? 'Hide defaults' : 'Set the defaults myself'}
           </button>
@@ -168,7 +168,7 @@ function DeleteSheet({ open, category, options, onClose, onDone }) {
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
           <button className="btn btn-primary" onClick={remove} disabled={busy}
                   style={{ background: 'var(--bad)', borderColor: 'var(--bad)' }}>
-            {busy ? <Spinner size={15} /> : <Icon name="trash" size={15} />} Remove
+            {busy ? <Spinner size={16} /> : <Icon name="trash" size={16} />} Remove
           </button>
         </>
       }
@@ -236,13 +236,13 @@ export default function CategoryManager() {
                   {c.one_piece ? ' · one piece' : ''}
                 </p>
               </div>
-              <button className="btn btn-ghost !px-2" onClick={() => setEditing(c)}
+              <button className="btn btn-ghost btn-icon" onClick={() => setEditing(c)}
                       aria-label={`Edit ${c.label}`}>
-                <Icon name="edit" size={15} />
+                <Icon name="edit" size={16} />
               </button>
-              <button className="btn btn-ghost !px-2" onClick={() => setRemoving(c)}
+              <button className="btn btn-ghost btn-icon" onClick={() => setRemoving(c)}
                       aria-label={`Remove ${c.label}`} style={{ color: 'var(--bad)' }}>
-                <Icon name="trash" size={15} />
+                <Icon name="trash" size={16} />
               </button>
             </div>
           ))}
@@ -250,7 +250,7 @@ export default function CategoryManager() {
       )}
 
       <button className="btn btn-primary mt-3" onClick={() => setAdding(true)}>
-        <Icon name="plus" size={15} /> Add a category
+        <Icon name="plus" size={16} /> Add a category
       </button>
 
       {adding && (

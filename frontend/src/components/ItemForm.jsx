@@ -130,7 +130,7 @@ function OptionRow({ label, hint, options, isActive, onChange }) {
                     style={on ? { color: 'var(--accent)' } : undefined}>
                 {o.label}
               </span>
-              <span className="block text-[0.68rem] leading-tight"
+              <span className="block text-2xs leading-tight"
                     style={{ color: 'var(--muted)' }}>
                 {o.hint}
               </span>
@@ -161,7 +161,7 @@ function LevelPicker({ label, hint, options, value, onChange }) {
                     style={on ? { color: 'var(--accent)' } : undefined}>
                 {o.label}
               </span>
-              <span className="block text-[0.68rem] leading-tight"
+              <span className="block text-2xs leading-tight"
                     style={{ color: 'var(--muted)' }}>
                 {o.hint}
               </span>
@@ -341,11 +341,11 @@ export default function ItemForm({ form, setForm, meta, palette, compact = false
       <div className="rail">
         <Chip active={form.water_proof}
               onClick={() => setForm({ ...form, water_proof: !form.water_proof })}>
-          <Icon name="drop" size={13} /> Waterproof
+          <Icon name="drop" size={14} /> Waterproof
         </Chip>
         <Chip active={form.wind_proof}
               onClick={() => setForm({ ...form, wind_proof: !form.wind_proof })}>
-          <Icon name="wind" size={13} /> Windproof
+          <Icon name="wind" size={14} /> Windproof
         </Chip>
       </div>
 

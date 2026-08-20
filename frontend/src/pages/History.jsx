@@ -4,7 +4,8 @@ import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  EmptyState, ErrorNote, Icon, Section, Spinner, titleCase, useConfirm, useToast,
+  EmptyState, ErrorNote, Icon, PageHeader, Section, Spinner, titleCase, useConfirm,
+  useToast,
 } from '../components/ui.jsx'
 
 const COMFORT = {
@@ -46,9 +47,10 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
               </span>
             )}
           </p>
+          {/* The date is the group heading directly above, so repeating the raw
+              ISO string here was noise. */}
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs"
              style={{ color: 'var(--muted)' }}>
-            <span>{wear.worn_on}</span>
             {wear.apparent_c != null && <span>felt like {Math.round(wear.apparent_c)} °C</span>}
             {wear.condition && <span>{wear.condition}</span>}
             {comfort && (
@@ -59,18 +61,18 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
           </p>
         </div>
         <button
-          className="btn btn-ghost !px-2" disabled={working}
+          className="btn btn-ghost btn-icon" disabled={working}
           title="Remove a single item from this wear"
           onClick={() => setEditing((v) => !v)}
         >
-          {editing ? <Icon name="check" size={15} /> : <Icon name="edit" size={15} />}
+          {editing ? <Icon name="check" size={16} /> : <Icon name="edit" size={16} />}
         </button>
         <button
-          className="btn btn-ghost !px-2" disabled={working}
+          className="btn btn-ghost btn-icon" disabled={working}
           style={{ color: 'var(--bad)' }} aria-label="Delete this wear"
           onClick={() => onDeleteWear(wear)}
         >
-          {working ? <Spinner size={15} /> : <Icon name="trash" size={15} />}
+          {working ? <Spinner size={16} /> : <Icon name="trash" size={16} />}
         </button>
       </div>
 
@@ -82,7 +84,7 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
                 <div className="aspect-[3/4] overflow-hidden rounded-lg">
                   <ItemPhoto item={item} rounded="rounded-lg" />
                 </div>
-                <p className="mt-1 truncate text-[0.68rem]">{item.name}</p>
+                <p className="mt-1 truncate text-2xs">{item.name}</p>
               </Link>
               {editing && (
                 <button
@@ -92,7 +94,7 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem }) {
                   disabled={working}
                   onClick={() => onRemoveItem(wear, item)}
                 >
-                  <Icon name="close" size={11} />
+                  <Icon name="close" size={12} />
                 </button>
               )}
             </div>
@@ -158,14 +160,11 @@ export default function History() {
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">History</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>
-          Everything you have logged as worn. Deleting an entry puts the wear counters back,
-          so a mis-tap does not leave a shirt waiting to be washed.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="History"
+        description="Everything logged as worn. Deleting an entry puts the wear counters back, so a mis-tap does not leave a shirt waiting to be washed."
+      />
 
       <ErrorNote error={error} onRetry={reload} />
 
@@ -197,7 +196,7 @@ export default function History() {
 
           {wears.length >= limit && (
             <button className="btn w-full" onClick={() => setLimit((l) => l + 60)}>
-              <Icon name="chevron" size={15} /> Show older
+              <Icon name="chevron" size={16} /> Show older
             </button>
           )}
         </>

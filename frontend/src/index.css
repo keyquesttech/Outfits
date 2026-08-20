@@ -3,6 +3,12 @@
 /* Warm neutrals so garment photos stay the loudest thing on screen. */
 :root {
   --page-pad: 1rem;
+  /* The two fixed chrome heights. Sticky offsets and the bottom-nav clearance
+     both derive from these rather than each guessing at a number. */
+  --header-h: 3.5rem;
+  --nav-h: 3.5rem;
+  --radius: 1rem;
+  --radius-sm: .75rem;
   --bg: #faf8f5;
   --surface: #ffffff;
   --surface-2: #f2efe9;
@@ -65,6 +71,28 @@
 
 * { -webkit-tap-highlight-color: transparent; }
 
+/* Keyboard focus was visible on inputs and nowhere else, so tabbing through a
+   page of buttons and chips gave no indication of where you were. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+/* Names, brands and notes are whatever someone typed. A long unbroken string
+   should wrap rather than push a card wider than the screen. */
+h1, h2, h3, p, li, td, th, button, a { overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 html, body, #root { height: 100%; }
 
 @media (min-width: 640px) { :root { --page-pad: 1.5rem; } }
@@ -104,6 +132,17 @@ body {
   :root:not([data-theme="dark"]) .btn-primary { color: #fff; }
 }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+/* Square, so a row of icon-only actions lines up on a consistent grid instead
+   of each one being as wide as its glyph. */
+.btn-icon { padding: .5rem; gap: 0; min-width: 2.25rem; }
+/* A button that reads as a link: an inline "show more" or "re-read", sitting in
+   running text rather than in a row of controls. */
+.btn-link {
+  padding: .15rem .25rem; font-size: .75rem; gap: .25rem;
+  background: transparent; border-color: transparent; color: var(--muted);
+}
+.btn-link:hover:not(:disabled) { color: var(--accent); background: transparent; }
 .btn-danger { background: var(--bad); border-color: var(--bad); color: #fff; }
 
 .input, .select, .textarea {
@@ -113,6 +152,10 @@ body {
 .input:focus, .select:focus, .textarea:focus {
   outline: 2px solid var(--accent); outline-offset: -1px;
 }
+/* One size for micro text. Three different values within a hundredth of a rem
+   read as sloppiness rather than hierarchy. */
+.text-2xs { font-size: .6875rem; line-height: 1.35; }
+
 .label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 
 .chip {
@@ -153,6 +196,23 @@ body {
   }
 }
 
+/* Toasts sat at a fixed 6rem from the bottom, which cleared the mobile nav by
+   accident and floated for no reason on desktop where there is no nav. */
+.toast-dock {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--nav-h) + .75rem);
+}
+@media (min-width: 1024px) { .toast-dock { bottom: 1.5rem; } }
+
+/* A card you can click says so on hover, and lifts rather than only brightening. */
+.card-link { transition: border-color .15s, box-shadow .15s, transform .15s; }
+@media (hover: hover) {
+  .card-link:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    transform: translateY(-2px);
+  }
+}
+.card-link:active { transform: translateY(0); }
+
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--border) 50%, var(--surface-2) 75%);
   background-size: 200% 100%;
@@ -161,7 +221,7 @@ body {
 
 .fade-up { animation: fade-up .25s ease both; }
 
-.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.75rem); }
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--nav-h) + 1.25rem); }
 @media (min-width: 1024px) { .safe-bottom { padding-bottom: 2.5rem; } }
 
 /* Wide targets are easier to hit on a phone and stop text wrapping oddly. */

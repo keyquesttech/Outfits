@@ -6,7 +6,8 @@ import { useAsync, useAutoSave, useDebounced, useLocalState } from '../hooks.js'
 import { applyTheme } from '../theme.js'
 import CategoryManager from '../components/CategoryManager.jsx'
 import {
-  Chip, ErrorNote, Field, Icon, Section, Spinner, WeatherIcon, titleCase, useToast,
+  Chip, ErrorNote, Field, Icon, PageHeader, Section, Spinner, WeatherIcon, titleCase,
+  useToast,
 } from '../components/ui.jsx'
 
 const THEMES = [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]
@@ -28,7 +29,7 @@ function SaveStatus({ status }) {
   return (
     <span className="flex items-center gap-1.5 text-xs font-semibold"
           style={{ color: `var(--${s.tone})` }}>
-      {status === 'saving' ? <Spinner size={13} /> : <Icon name="check" size={13} />}
+      {status === 'saving' ? <Spinner size={14} /> : <Icon name="check" size={14} />}
       {s.text}
     </span>
   )
@@ -136,7 +137,7 @@ function LocationPicker({ form, setForm, queue }) {
 
       <div className="flex flex-wrap gap-2">
         <button className="btn" onClick={detect} disabled={locating}>
-          {locating ? <Spinner size={15} /> : <Icon name="search" size={15} />}
+          {locating ? <Spinner size={16} /> : <Icon name="search" size={16} />}
           Detect my location
         </button>
         <button className="btn btn-ghost" onClick={() => setManual((m) => !m)}>
@@ -165,7 +166,7 @@ function LocationPicker({ form, setForm, queue }) {
               setFound(null)
               toast('Location updated.', 'success')
             }}>
-              <Icon name="check" size={15} /> Use this
+              <Icon name="check" size={16} /> Use this
             </button>
             <button className="btn btn-ghost" onClick={() => setFound(null)}>Not right</button>
           </div>
@@ -200,7 +201,7 @@ function LocationPicker({ form, setForm, queue }) {
                   {r.latitude?.toFixed(3)}, {r.longitude?.toFixed(3)}
                 </span>
               </span>
-              <Icon name="plus" size={15} style={{ color: 'var(--accent)' }} />
+              <Icon name="plus" size={16} style={{ color: 'var(--accent)' }} />
             </button>
           ))}
         </div>
@@ -276,13 +277,13 @@ function WeatherSettings({ data, form, setForm, queue }) {
               style={current === p.name ? { borderColor: 'var(--accent)' } : undefined}
             >
               <span style={{ color: 'var(--accent)', marginTop: 2 }}>
-                <WeatherIcon group={p.name === 'metoffice' ? 'rain' : 'clear'} size={17} />
+                <WeatherIcon group={p.name === 'metoffice' ? 'rain' : 'clear'} size={18} />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">
                   {p.label}
                   {p.needs_key && (
-                    <span className="ml-2 text-[0.68rem] font-normal"
+                    <span className="ml-2 text-2xs font-normal"
                           style={{ color: keySet ? 'var(--good)' : 'var(--warn)' }}>
                       {keySet ? 'key saved' : 'needs a key'}
                     </span>
@@ -322,7 +323,7 @@ function WeatherSettings({ data, form, setForm, queue }) {
                     background: optimize ? 'var(--accent)' : 'var(--surface-2)',
                     border: '1px solid var(--border)', color: '#fff',
                   }}>
-              {optimize && <Icon name="check" size={13} />}
+              {optimize && <Icon name="check" size={14} />}
             </span>
             <span>
               <span className="block text-sm font-semibold">Optimise for the free plan</span>
@@ -345,7 +346,7 @@ function WeatherSettings({ data, form, setForm, queue }) {
       )}
 
       <button className="btn" onClick={test} disabled={testing}>
-        {testing ? <Spinner size={15} /> : <Icon name="refresh" size={15} />} Test connection
+        {testing ? <Spinner size={16} /> : <Icon name="refresh" size={16} />} Test connection
       </button>
 
       {result && (
@@ -377,7 +378,7 @@ function WeatherSettings({ data, form, setForm, queue }) {
             ? { background: 'var(--accent)', borderColor: 'var(--accent)', color: '#fff' }
             : undefined}
         >
-          <Icon name="storm" size={13} /> Warnings {warningsOn ? 'on' : 'off'}
+          <Icon name="storm" size={14} /> Warnings {warningsOn ? 'on' : 'off'}
         </button>
       </Field>
 
@@ -431,11 +432,11 @@ function ColourMaintenance() {
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button className="btn" onClick={() => run(false)} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="refresh" size={15} />}
+          {busy ? <Spinner size={16} /> : <Icon name="refresh" size={16} />}
           Fill in what is missing
         </button>
         <button className="btn" onClick={() => run(true)} disabled={busy}>
-          <Icon name="refresh" size={15} /> Overwrite every colour
+          <Icon name="refresh" size={16} /> Overwrite every colour
         </button>
       </div>
       <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
@@ -519,9 +520,24 @@ export default function Settings() {
   const keySet = data.settings.gemini_api_key_set
 
   return (
-    <div className="space-y-6">
-      <div className="sticky top-[3.6rem] z-20 -mx-4 flex items-center justify-between gap-3 px-4 py-2"
-           style={{ background: 'color-mix(in srgb, var(--bg) 92%, transparent)' }}>
+    /* A settings form is reading-width work, not a grid. Left full-width it
+       stretched every field and checkbox to 1400px with the label hugging the
+       left edge and nothing else on the line. */
+    <div className="max-w-3xl space-y-6">
+      <PageHeader title="Settings" description="Weather, location, AI and how the wardrobe is filed." />
+
+      {/* Sticks under the header so the save state stays visible while you
+          scroll. It used to bleed out with a hard-coded -mx-4, which was the
+          wrong amount on any screen wide enough to grow the page padding. */}
+      <div
+        className="sticky z-20 flex items-center justify-between gap-3 border-b py-2"
+        style={{
+          top: 'var(--header-h)',
+          borderColor: 'var(--border)',
+          background: 'color-mix(in srgb, var(--bg) 92%, transparent)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
           Changes save automatically.
         </p>
@@ -582,7 +598,7 @@ export default function Settings() {
                 </Field>
               </div>
               <button className="btn" onClick={testAI} disabled={testing}>
-                {testing ? <Spinner size={15} /> : <Icon name="sparkle" size={15} />}
+                {testing ? <Spinner size={16} /> : <Icon name="sparkle" size={16} />}
                 Test connection
               </button>
             </>
@@ -621,7 +637,7 @@ export default function Settings() {
         title="Background jobs"
         action={
           <button className="btn btn-ghost" onClick={() => jobs.reload()}>
-            <Icon name="refresh" size={15} /> Refresh
+            <Icon name="refresh" size={16} /> Refresh
           </button>
         }
       >
@@ -649,7 +665,7 @@ export default function Settings() {
                       {j.error && <span className="truncate"
                                         style={{ color: 'var(--muted)' }}>{j.error}</span>}
                       {j.status === 'failed' && (
-                        <button className="btn btn-ghost !px-1.5 !py-0.5 ml-auto text-[0.7rem]"
+                        <button className="btn btn-link ml-auto"
                                 onClick={async () => { await api.retryJob(j.id); jobs.reload(true) }}>
                           Retry
                         </button>

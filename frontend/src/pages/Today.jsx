@@ -5,7 +5,7 @@ import { useMeta } from '../App.jsx'
 import { useAsync, useLocalState } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  Chip, EmptyState, ErrorNote, Icon, Section, Spinner, WeatherIcon, useToast,
+  Chip, PageHeader, EmptyState, ErrorNote, Icon, Section, Spinner, WeatherIcon, useToast,
 } from '../components/ui.jsx'
 
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
@@ -42,7 +42,7 @@ function Warnings({ warnings }) {
               <span className="block font-medium">
                 {w.hazard ? `${w.hazard[0].toUpperCase()}${w.hazard.slice(1)}` : w.title}
                 {w.active_now && (
-                  <span className="ml-1.5 text-[0.65rem] font-bold uppercase tracking-wide"
+                  <span className="ml-1.5 text-2xs font-bold uppercase tracking-wide"
                         style={{ color: WARNING_COLOUR[w.level] || worst }}>
                     in force
                   </span>
@@ -62,7 +62,7 @@ function Warnings({ warnings }) {
           </a>
         ))}
         {list.length > 2 && (
-          <button className="btn btn-ghost !px-0 text-xs" onClick={() => setOpen(!open)}>
+          <button className="btn btn-link" onClick={() => setOpen(!open)}>
             {open ? 'Show fewer' : `Show ${list.length - 2} more`}
           </button>
         )}
@@ -74,10 +74,10 @@ function Warnings({ warnings }) {
 function Metric({ label, value, sub }) {
   return (
     <div className="rounded-xl px-3 py-2" style={{ background: 'var(--surface-2)' }}>
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wide"
+      <p className="text-2xs font-semibold uppercase tracking-wide"
          style={{ color: 'var(--muted)' }}>{label}</p>
       <p className="mt-0.5 text-base font-bold tabular-nums leading-none">{value}</p>
-      {sub && <p className="mt-1 text-[0.65rem]" style={{ color: 'var(--muted)' }}>{sub}</p>}
+      {sub && <p className="mt-1 text-2xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
     </div>
   )
 }
@@ -93,7 +93,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
           they just will not be scored on temperature.
         </p>
         <button className="btn mt-3" onClick={onRefresh}>
-          <Icon name="refresh" size={15} /> Retry
+          <Icon name="refresh" size={16} /> Retry
         </button>
       </div>
     )
@@ -112,7 +112,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
         <div className="px-4 py-4 sm:px-5" style={{ background: 'var(--surface)' }}>
           <div className="flex items-start gap-4">
             <span className="shrink-0" style={{ color: 'var(--accent)' }}>
-              <WeatherIcon group={c.condition?.group} size={52} />
+              <WeatherIcon group={c.condition?.group} size={48} />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -129,7 +129,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
                 {weather.stale && ' · last known forecast'}
               </p>
             </div>
-            <button className="btn btn-ghost !p-1.5 shrink-0" onClick={onRefresh}
+            <button className="btn btn-ghost btn-icon shrink-0" onClick={onRefresh}
                     disabled={refreshing} aria-label="Refresh weather">
               {refreshing ? <Spinner size={16} /> : <Icon name="refresh" size={16} />}
             </button>
@@ -156,18 +156,18 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
                 <div key={d.date}
                      className="flex flex-1 flex-col items-center gap-1.5 rounded-xl px-1 py-3"
                      style={{ background: 'var(--surface-2)' }}>
-                  <span className="text-[0.7rem] font-semibold" style={{ color: 'var(--muted)' }}>
+                  <span className="text-2xs font-semibold" style={{ color: 'var(--muted)' }}>
                     {new Date(d.date).toLocaleDateString(undefined, { weekday: 'short' })}
                   </span>
                   <span style={{ color: 'var(--accent)' }}>
-                    <WeatherIcon group={d.condition?.group} size={22} />
+                    <WeatherIcon group={d.condition?.group} size={20} />
                   </span>
                   <span className="text-sm font-bold tabular-nums">{Math.round(d.max_c)}°</span>
-                  <span className="text-[0.7rem] tabular-nums" style={{ color: 'var(--muted)' }}>
+                  <span className="text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
                     {Math.round(d.min_c)}°
                   </span>
                   {d.rain_chance > 20 && (
-                    <span className="text-[0.65rem] tabular-nums"
+                    <span className="text-2xs tabular-nums"
                           style={{ color: 'var(--accent)' }}>
                       {Math.round(d.rain_chance)}%
                     </span>
@@ -185,7 +185,8 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
 function SuggestionCard({ suggestion, index, onWear, busy }) {
   const pct = Math.round(suggestion.score * 100)
   return (
-    <div className="card fade-up overflow-hidden" style={{ animationDelay: `${index * 60}ms` }}>
+    <div className="card card-link fade-up overflow-hidden"
+         style={{ animationDelay: `${index * 60}ms` }}>
       <div className="flex items-center justify-between gap-2 px-4 pt-3.5">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
@@ -196,38 +197,44 @@ function SuggestionCard({ suggestion, index, onWear, busy }) {
             {index === 0 ? 'Best match' : `Option ${index + 1}`}
           </span>
         </div>
-        <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--muted)' }}>{pct}%</span>
-      </div>
-
-      <div className="scroll-x flex gap-2 px-4 py-3">
-        {suggestion.items.map((item) => (
-          <Link key={item.id} to={`/wardrobe/${item.id}`}
-                className="w-24 shrink-0" title={item.name}>
-            <div className="aspect-[3/4] overflow-hidden rounded-lg">
-              <ItemPhoto item={item} rounded="rounded-lg" />
-            </div>
-            <p className="mt-1 truncate text-[0.7rem] font-medium">{item.name}</p>
-          </Link>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-1.5 px-4">
-        {suggestion.reasons.map((r, i) => (
-          <span key={i} className="rounded-full px-2 py-0.5 text-[0.68rem] font-medium"
-                style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>
-            {r}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2 px-4 py-3">
-        <button className="btn btn-primary flex-1" onClick={() => onWear(suggestion)} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Wear this
-        </button>
-        <span className="text-[0.7rem] tabular-nums" style={{ color: 'var(--muted)' }}>
-          warmth {suggestion.warmth}
-          {suggestion.target_warmth != null && ` / ${suggestion.target_warmth}`}
+        <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--muted)' }}>
+          {pct}% match
         </span>
+      </div>
+
+      {/* Photos and the decision sit side by side once there is room. Stacked,
+          the garments took a fifth of a wide card and left the rest empty. */}
+      <div className="gap-4 px-4 py-3 md:flex md:items-start">
+        <div className="scroll-x flex gap-2 md:flex-1">
+          {suggestion.items.map((item) => (
+            <Link key={item.id} to={`/wardrobe/${item.id}`}
+                  className="w-24 shrink-0" title={item.name}>
+              <div className="aspect-[3/4] overflow-hidden rounded-lg">
+                <ItemPhoto item={item} rounded="rounded-lg" />
+              </div>
+              <p className="mt-1 truncate text-2xs font-medium">{item.name}</p>
+            </Link>
+          ))}
+        </div>
+
+        <div className="mt-3 space-y-3 md:mt-0 md:w-64 md:shrink-0">
+          <div className="flex flex-wrap gap-1.5">
+            {suggestion.reasons.map((r, i) => (
+              <span key={i} className="rounded-full px-2 py-0.5 text-2xs font-medium"
+                    style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>
+                {r}
+              </span>
+            ))}
+          </div>
+          <button className="btn btn-primary w-full" onClick={() => onWear(suggestion)}
+                  disabled={busy}>
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Wear this
+          </button>
+          <p className="text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
+            Total warmth {suggestion.warmth}
+            {suggestion.target_warmth != null && ` of ${suggestion.target_warmth} wanted`}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -282,6 +289,10 @@ export default function Today() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Today"
+        description="What the weather is doing, and what to wear in it."
+      />
       <WeatherCard weather={weather.data} onRefresh={refreshWeather} refreshing={refreshing} />
       <Warnings warnings={weather.data?.warnings} />
 
@@ -298,24 +309,28 @@ export default function Today() {
             </Chip>
           ))}
         </div>
-        <div className="rail">
-          <Chip active={excludeDirty} onClick={() => setExcludeDirty(!excludeDirty)}>
-            <Icon name="drop" size={13} /> {excludeDirty ? 'Hiding dirty items' : 'Including dirty items'}
-          </Chip>
-          {aiAvailable && (
-            <Chip active={useAI} onClick={() => setUseAI(!useAI)}>
-              <Icon name="sparkle" size={13} /> AI stylist {useAI ? 'on' : 'off'}
-            </Chip>
-          )}
-        </div>
       </div>
 
       <Section
         title="Suggestions"
         action={
-          <button className="btn btn-ghost" onClick={() => suggestions.reload()} disabled={suggestions.loading}>
-            {suggestions.loading ? <Spinner size={15} /> : <Icon name="refresh" size={15} />} Reshuffle
-          </button>
+          <>
+            {/* These two change what is suggested, so they belong beside the
+                suggestions rather than in a third row of chips above them. */}
+            <Chip active={excludeDirty} onClick={() => setExcludeDirty(!excludeDirty)}>
+              <Icon name="drop" size={14} /> {excludeDirty ? 'Clean only' : 'Including dirty'}
+            </Chip>
+            {aiAvailable && (
+              <Chip active={useAI} onClick={() => setUseAI(!useAI)}>
+                <Icon name="sparkle" size={14} /> AI stylist
+              </Chip>
+            )}
+            <button className="btn btn-ghost" onClick={() => suggestions.reload()}
+                    disabled={suggestions.loading}>
+              {suggestions.loading ? <Spinner size={16} /> : <Icon name="refresh" size={16} />}
+              Reshuffle
+            </button>
+          </>
         }
       >
         <ErrorNote error={suggestions.error} onRetry={suggestions.reload} />
@@ -331,7 +346,7 @@ export default function Today() {
             icon="hanger"
             title="Not enough in the wardrobe yet"
             hint={data.message}
-            action={<Link to="/wardrobe" className="btn btn-primary"><Icon name="plus" size={15} /> Add items</Link>}
+            action={<Link to="/wardrobe" className="btn btn-primary"><Icon name="plus" size={16} /> Add items</Link>}
           />
         )}
 
@@ -360,14 +375,14 @@ export default function Today() {
                 {data.ai.items.map((item) => (
                   <Link key={item.id} to={`/wardrobe/${item.id}`} className="w-24 shrink-0">
                     <div className="aspect-[3/4] overflow-hidden rounded-lg"><ItemPhoto item={item} rounded="rounded-lg" /></div>
-                    <p className="mt-1 truncate text-[0.7rem]">{item.name}</p>
+                    <p className="mt-1 truncate text-2xs">{item.name}</p>
                   </Link>
                 ))}
               </div>
               <p className="mt-3 text-sm" style={{ color: 'var(--muted)' }}>{data.ai.reasoning}</p>
               <button className="btn btn-primary mt-3"
                       onClick={() => wear({ item_ids: data.ai.items.map((i) => i.id) })}>
-                <Icon name="check" size={15} /> Wear this
+                <Icon name="check" size={16} /> Wear this
               </button>
             </div>
           ) : (

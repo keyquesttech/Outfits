@@ -120,7 +120,7 @@ export default function ColourField({
     <Field label={label} hint={hint}>
       <div className="relative">
         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
-          <Swatch hex={reading.hex} size={15} />
+          <Swatch hex={reading.hex} size={16} />
         </span>
         <input
           className="input pl-9 pr-9"
@@ -166,7 +166,7 @@ export default function ColourField({
           )}
           {alternates.length > 0 && (
             <div className="rail items-center">
-              <span className="shrink-0 text-[0.68rem]" style={{ color: 'var(--muted)' }}>
+              <span className="shrink-0 text-2xs" style={{ color: 'var(--muted)' }}>
                 or
               </span>
               {alternates.map((c) => (
@@ -180,11 +180,11 @@ export default function ColourField({
 
       <button
         type="button"
-        className="btn btn-ghost mt-1 !px-1 !py-0.5 text-xs"
+        className="btn btn-link mt-1"
         onClick={() => setBrowsing((v) => !v)}
         aria-expanded={browsing}
       >
-        <Icon name="chevron" size={13}
+        <Icon name="chevron" size={14}
               style={{ transform: browsing ? 'rotate(180deg)' : 'none' }} />
         {browsing ? 'Hide all colours' : 'All colours'}
       </button>

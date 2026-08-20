@@ -31,7 +31,8 @@ function TopBar() {
       className="sticky top-0 z-30 border-b backdrop-blur"
       style={{ background: 'color-mix(in srgb, var(--bg) 88%, transparent)', borderColor: 'var(--border)' }}
     >
-      <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 px-[var(--page-pad)] py-3">
+      <div className="mx-auto flex w-full max-w-[100rem] items-center gap-3 px-[var(--page-pad)] py-2"
+           style={{ minHeight: 'var(--header-h)' }}>
         <NavLink to="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg"
                 style={{ background: 'var(--accent)', color: '#fff' }}>
@@ -40,11 +41,11 @@ function TopBar() {
           <span className="text-lg font-bold tracking-tight">Outfits</span>
         </NavLink>
 
-        <nav className="ml-4 hidden items-center gap-1 lg:flex">
+        <nav className="ml-2 hidden items-center gap-0.5 lg:flex xl:ml-4 xl:gap-1">
           {NAV.map((n) => (
             <NavLink
               key={n.to} to={n.to} end={n.end}
-              className={({ isActive }) => `btn ${isActive ? 'btn-primary' : 'btn-ghost'}`}
+              className={({ isActive }) => `btn !px-2.5 xl:!px-3.5 ${isActive ? 'btn-primary' : 'btn-ghost'}`}
             >
               <Icon name={n.icon} size={16} /> {n.label}
             </NavLink>
@@ -54,7 +55,7 @@ function TopBar() {
         <div className="ml-auto">
           <NavLink to="/settings" className={({ isActive }) => `btn ${isActive ? 'btn-primary' : 'btn-ghost'}`}
                    aria-label="Settings">
-            <Icon name="gear" size={17} />
+            <Icon name="gear" size={18} />
             <span className="hidden sm:inline">Settings</span>
           </NavLink>
         </div>
@@ -81,11 +82,17 @@ function BottomNav() {
           return (
             <NavLink
               key={n.to} to={n.to} end={n.end}
-              className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[0.65rem] font-semibold"
+              aria-label={n.label}
+              className="flex min-w-0 flex-1 flex-col items-center gap-0.5 py-1.5 text-2xs font-semibold"
               style={{ color: active ? 'var(--accent)' : 'var(--muted)' }}
             >
-              <Icon name={n.icon} size={20} />
-              {n.label}
+              {/* The active tab gets a filled pill rather than only a colour
+                  change, which is hard to spot at this size. */}
+              <span className="rounded-full px-3 py-0.5"
+                    style={active ? { background: 'var(--accent-soft)' } : undefined}>
+                <Icon name={n.icon} size={18} />
+              </span>
+              <span className="max-w-full truncate px-0.5">{n.label}</span>
             </NavLink>
           )
         })}
@@ -108,7 +115,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center" style={{ color: 'var(--muted)' }}>
-        <Spinner size={26} />
+        <Spinner size={24} />
       </div>
     )
   }

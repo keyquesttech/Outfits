@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
-import { EmptyState, ErrorNote, Icon, Section, Stat, titleCase } from '../components/ui.jsx'
+import {
+  EmptyNote, EmptyState, ErrorNote, Icon, PageHeader, Section, Stat, titleCase,
+} from '../components/ui.jsx'
 
 function BarList({ rows, valueKey = 'count', labelKey = 'label', colourOf, format }) {
   const max = Math.max(...rows.map((r) => r[valueKey] || 0), 1)
@@ -10,7 +12,7 @@ function BarList({ rows, valueKey = 'count', labelKey = 'label', colourOf, forma
     <div className="space-y-2">
       {rows.map((r, i) => (
         <div key={i} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 truncate text-xs font-medium">{titleCase(r[labelKey])}</span>
+          <span className="w-20 shrink-0 truncate text-xs font-medium sm:w-24">{titleCase(r[labelKey])}</span>
           <div className="h-5 flex-1 overflow-hidden rounded" style={{ background: 'var(--surface-2)' }}>
             <div
               className="h-full rounded transition-all"
@@ -22,7 +24,7 @@ function BarList({ rows, valueKey = 'count', labelKey = 'label', colourOf, forma
               }}
             />
           </div>
-          <span className="w-10 shrink-0 text-right text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+          <span className="w-9 shrink-0 text-right text-xs tabular-nums sm:w-10" style={{ color: 'var(--muted)' }}>
             {format ? format(r) : r[valueKey]}
           </span>
         </div>
@@ -33,7 +35,7 @@ function BarList({ rows, valueKey = 'count', labelKey = 'label', colourOf, forma
 
 function Timeline({ points }) {
   if (!points?.length) {
-    return <p className="text-sm" style={{ color: 'var(--muted)' }}>No wears logged yet.</p>
+    return <EmptyNote>No wears logged yet.</EmptyNote>
   }
   const max = Math.max(...points.map((p) => p.count), 1)
   const w = 100 / points.length
@@ -56,7 +58,7 @@ function Timeline({ points }) {
           )
         })}
       </svg>
-      <div className="flex justify-between text-[0.7rem]" style={{ color: 'var(--muted)' }}>
+      <div className="flex justify-between text-2xs" style={{ color: 'var(--muted)' }}>
         <span>{points[0].worn_on}</span>
         <span>{points[points.length - 1].worn_on}</span>
       </div>
@@ -75,9 +77,9 @@ function ItemStrip({ items, valueOf, emptyNote }) {
           <div className="aspect-[3/4] overflow-hidden rounded-lg">
             <ItemPhoto item={i} rounded="rounded-lg" />
           </div>
-          <p className="mt-1 truncate text-[0.7rem] font-medium">{i.name}</p>
+          <p className="mt-1 truncate text-2xs font-medium">{i.name}</p>
           {valueOf && (
-            <p className="truncate text-[0.68rem] tabular-nums" style={{ color: 'var(--muted)' }}>
+            <p className="truncate text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
               {valueOf(i)}
             </p>
           )}
@@ -109,20 +111,29 @@ export default function Insights() {
       <EmptyState
         icon="chart" title="Nothing to analyse yet"
         hint="Add a few items and log what you wear. The interesting numbers need a couple of weeks of history."
-        action={<Link to="/wardrobe" className="btn btn-primary"><Icon name="plus" size={15} /> Add items</Link>}
+        action={<Link to="/wardrobe" className="btn btn-primary"><Icon name="plus" size={16} /> Add items</Link>}
       />
     )
   }
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Insights"
+        description="What you actually wear, against what you actually own."
+      />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Items" value={s.active_items} sub={`${s.total_items} including archived`} />
+        <Stat label="Items" value={s.active_items}
+              sub={s.total_items > s.active_items
+                ? `${s.total_items - s.active_items} archived`
+                : 'all in use'} />
         <Stat label="Total wears" value={s.total_wears} sub={`${s.wear_logs} days logged`} />
         <Stat label="Needs washing" value={s.dirty_items} tone={s.dirty_items ? 'bad' : undefined}
               sub={`${s.wash_loads} loads run`} />
+        {/* This used to repeat the wash-load count from the tile beside it. */}
         <Stat label="Outfits saved" value={s.outfits}
-              sub={`${s.wash_loads} wash loads run`} />
+              sub={s.outfits ? 'ready to wear' : 'none built yet'} />
       </div>
 
       <Section title="Items worn per day, last 12 weeks">
@@ -142,7 +153,7 @@ export default function Insights() {
                 format={(r) => `${r.count}`}
               />
             ) : (
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>No colours recorded yet.</p>
+              <EmptyNote>No colours recorded yet.</EmptyNote>
             )}
             {data.colours.some((c) => !c.known) && (
               <p className="mt-3 text-xs" style={{ color: 'var(--warn)' }}>
@@ -221,7 +232,7 @@ export default function Insights() {
               <BarList rows={data.wash.by_temp.map((t) => ({ label: `${t.temp_c}°C`, count: t.loads }))}
                        format={(r) => `${r.count} load${r.count === 1 ? '' : 's'}`} />
             ) : (
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>No washes recorded yet.</p>
+              <EmptyNote>No washes recorded yet.</EmptyNote>
             )}
             {data.wash.most_washed.length > 0 && (
               <>

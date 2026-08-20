@@ -3,7 +3,8 @@ import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  EmptyState, ErrorNote, Icon, Section, Spinner, titleCase, useToast,
+  EmptyNote, EmptyState, ErrorNote, Icon, PageHeader, Section, Spinner, titleCase,
+  useToast,
 } from '../components/ui.jsx'
 
 function Load({ load, onWash, busy }) {
@@ -47,7 +48,7 @@ function Load({ load, onWash, busy }) {
                         style={{ background: 'var(--accent)' }}><Icon name="check" size={12} /></span>
                 )}
               </div>
-              <p className="mt-1 truncate text-[0.7rem] font-medium">{i.name}</p>
+              <p className="mt-1 truncate text-2xs font-medium">{i.name}</p>
             </button>
           )
         })}
@@ -59,7 +60,7 @@ function Load({ load, onWash, busy }) {
           disabled={busy || !selected.length}
           onClick={() => onWash(load, selected)}
         >
-          {busy ? <Spinner size={15} /> : <Icon name="drop" size={15} />}
+          {busy ? <Spinner size={16} /> : <Icon name="drop" size={16} />}
           {load.machine_wash ? `Washed ${selected.length}` : `Cleaned ${selected.length}`}
         </button>
       </div>
@@ -98,11 +99,15 @@ export default function Laundry() {
 
   return (
     <div className="space-y-6">
+      <PageHeader
+        title="Laundry"
+        description="What is dirty, grouped into loads that can go in together."
+      />
       <Section
         title="Ready to wash"
         action={
           <button className="btn btn-ghost" onClick={() => plan.reload()} disabled={plan.loading}>
-            {plan.loading ? <Spinner size={15} /> : <Icon name="refresh" size={15} />} Refresh
+            {plan.loading ? <Spinner size={16} /> : <Icon name="refresh" size={16} />} Refresh
           </button>
         }
       >
@@ -180,7 +185,7 @@ export default function Laundry() {
             ))}
           </div>
         ) : (
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>No washes recorded yet.</p>
+          <EmptyNote boxed>Nothing washed yet. Loads you run show up here.</EmptyNote>
         )}
       </Section>
     </div>

@@ -136,18 +136,38 @@ export function ToastHost({ children }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed inset-x-0 bottom-24 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none">
+      <div
+        className="toast-dock pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4"
+        role="status" aria-live="polite"
+      >
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="card fade-up pointer-events-auto max-w-md px-4 py-2.5 text-sm font-medium"
+          <button
+            key={t.id} type="button"
+            onClick={() => setToasts((list) => list.filter((x) => x.id !== t.id))}
+            className="card fade-up pointer-events-auto max-w-md px-4 py-2.5 text-left text-sm font-medium"
             style={{ borderColor: t.tone === 'error' ? 'var(--bad)' : t.tone === 'success' ? 'var(--good)' : 'var(--border)' }}
           >
             {t.message}
-          </div>
+          </button>
         ))}
       </div>
     </ToastCtx.Provider>
+  )
+}
+
+/**
+ * The quiet version of EmptyState, for a section that happens to be empty
+ * rather than a page that is.
+ *
+ * These were bare muted paragraphs, so a page could show a full bordered empty
+ * card for one section and a floating line of grey text for the next.
+ */
+export function EmptyNote({ children, boxed = false }) {
+  return (
+    <p className={`px-4 py-5 text-center text-sm ${boxed ? 'card' : ''}`}
+       style={{ color: 'var(--muted)' }}>
+      {children}
+    </p>
   )
 }
 
@@ -155,7 +175,7 @@ export function EmptyState({ icon = 'hanger', title, hint, action }) {
   return (
     <div className="card flex flex-col items-center gap-3 px-6 py-12 text-center">
       <div className="rounded-full p-3" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-        <Icon name={icon} size={26} />
+        <Icon name={icon} size={24} />
       </div>
       <p className="text-base font-semibold">{title}</p>
       {hint && <p className="max-w-sm text-sm" style={{ color: 'var(--muted)' }}>{hint}</p>}
@@ -169,7 +189,7 @@ export function ErrorNote({ error, onRetry }) {
   return (
     <div className="card px-4 py-3 text-sm" style={{ borderColor: 'var(--bad)' }}>
       <p className="font-semibold" style={{ color: 'var(--bad)' }}>{String(error.message || error)}</p>
-      {onRetry && <button className="btn mt-2" onClick={onRetry}><Icon name="refresh" size={15} /> Try again</button>}
+      {onRetry && <button className="btn mt-2" onClick={onRetry}><Icon name="refresh" size={16} /> Try again</button>}
     </div>
   )
 }
@@ -197,7 +217,7 @@ export function Modal({ open, onClose, title, children, footer, wide = false }) 
       >
         <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
           <h2 className="text-base font-bold">{title}</h2>
-          <button className="btn btn-ghost !p-1.5" onClick={onClose} aria-label="Close">
+          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
             <Icon name="close" size={18} />
           </button>
         </div>
@@ -222,13 +242,47 @@ export function Field({ label, hint, children }) {
   )
 }
 
+/**
+ * The title block every page opens with.
+ *
+ * Six of the seven pages used to start straight into their content, so nothing
+ * told you where you were except the nav highlight — and the two that did have
+ * a heading styled it themselves. One component means one type scale, one
+ * spacing rhythm, and one place for the action button to sit.
+ *
+ * The action wraps under the title on a narrow screen rather than squeezing it.
+ */
+export function PageHeader({ title, description, action, children }) {
+  return (
+    <header className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
+          {description && (
+            <p className="mt-1 max-w-prose text-sm" style={{ color: 'var(--muted)' }}>
+              {description}
+            </p>
+          )}
+        </div>
+        {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+      </div>
+      {children}
+    </header>
+  )
+}
+
 export function Section({ title, action, children, className = '' }) {
   return (
     <section className={`space-y-3 ${className}`}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3">
-          {title && <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{title}</h2>}
-          {action}
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          {title && (
+            <h2 className="text-sm font-bold uppercase tracking-wide"
+                style={{ color: 'var(--muted)' }}>
+              {title}
+            </h2>
+          )}
+          {action && <div className="ml-auto flex items-center gap-2">{action}</div>}
         </div>
       )}
       {children}
@@ -239,7 +293,7 @@ export function Section({ title, action, children, className = '' }) {
 export function Stat({ label, value, sub, tone }) {
   return (
     <div className="card px-3.5 py-3">
-      <p className="text-[0.7rem] font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{label}</p>
+      <p className="text-2xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{label}</p>
       <p className="mt-1 text-2xl font-bold tabular-nums" style={tone ? { color: `var(--${tone})` } : undefined}>{value}</p>
       {sub && <p className="text-xs" style={{ color: 'var(--muted)' }}>{sub}</p>}
     </div>
@@ -306,7 +360,7 @@ export function MultiSelect({ label, hint, options, selected = [], onChange, emp
                         border: '1px solid var(--border)',
                         color: '#fff',
                       }}>
-                  {on && <Icon name="check" size={11} />}
+                  {on && <Icon name="check" size={12} />}
                 </span>
                 <span style={on ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>
                   {o.label}
@@ -338,7 +392,7 @@ export function StatusPill({ status, size = 'sm' }) {
   const s = STATUS_STYLE[status] || STATUS_STYLE.clean
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full font-semibold ${size === 'sm' ? 'px-2 py-0.5 text-[0.68rem]' : 'px-2.5 py-1 text-xs'}`}
+      className={`inline-flex items-center gap-1 rounded-full font-semibold ${size === 'sm' ? 'px-2 py-0.5 text-2xs' : 'px-2.5 py-1 text-xs'}`}
       style={{ background: 'var(--surface-2)', color: `var(--${s.tone})`, border: '1px solid var(--border)' }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: `var(--${s.tone})` }} />

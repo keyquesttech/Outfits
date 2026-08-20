@@ -172,7 +172,7 @@ export default function ImageEditor({ open, file, onCancel, onApply }) {
         <>
           <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
           <button className="btn btn-primary" onClick={apply} disabled={busy || !image}>
-            {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />}
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
             {untouched ? 'Use as is' : 'Apply'}
           </button>
         </>

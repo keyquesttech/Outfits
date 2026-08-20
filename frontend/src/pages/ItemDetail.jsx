@@ -10,7 +10,7 @@ import ItemForm, {
 import ImageEditor from '../components/ImageEditor.jsx'
 import CareForm, { careFormPayload, careFormState } from '../components/CareForm.jsx'
 import {
-  Chip, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
+  Chip, EmptyNote, ErrorNote, Field, Icon, Modal, Section, Spinner, StatusPill,
   titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
@@ -45,7 +45,7 @@ function CareSheet({ open, onClose, item, onSaved }) {
       footer={<>
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
+          {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
         </button>
       </>}>
       <CareForm form={form} setForm={setForm} meta={meta} onScan={scanLabel} busy={busy} />
@@ -74,7 +74,7 @@ function EditSheet({ open, onClose, item, onSaved }) {
       footer={<>
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
+          {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
         </button>
       </>}>
       <ItemForm form={form} setForm={setForm} meta={meta} palette={item.palette} />
@@ -196,26 +196,26 @@ export default function ItemDetail() {
           <div className="flex gap-2">
             <button className="btn flex-1" onClick={editCurrentPhoto}
                     disabled={busy || loadingPhoto || !item.image_url}>
-              {loadingPhoto ? <Spinner size={15} /> : <Icon name="crop" size={15} />} Edit photo
+              {loadingPhoto ? <Spinner size={16} /> : <Icon name="crop" size={16} />} Edit photo
             </button>
             <button className="btn flex-1" onClick={() => photoRef.current?.click()} disabled={busy}>
-              <Icon name="camera" size={15} /> Replace
+              <Icon name="camera" size={16} /> Replace
             </button>
             <button className="btn" onClick={() => act(() => api.analyse(item.id), 'AI is re-tagging this item.')}
                     disabled={busy} title="Re-run AI tagging">
-              <Icon name="sparkle" size={15} />
+              <Icon name="sparkle" size={16} />
             </button>
           </div>
           <div className="card px-3.5 py-3">
             <div className="flex items-center justify-between gap-2">
               <p className="label">Colours read from the photo</p>
               <button
-                className="btn btn-ghost !px-1.5 !py-0.5 text-xs" disabled={busy}
+                className="btn btn-link" disabled={busy}
                 title="Read the colours off this photo again"
                 onClick={() => act(() => api.rescanItemColours(item.id),
                                    'Colours re-read from the photo.')}
               >
-                <Icon name="refresh" size={13} /> Re-read
+                <Icon name="refresh" size={14} /> Re-read
               </button>
             </div>
             {item.palette?.length > 0 ? (
@@ -281,26 +281,26 @@ export default function ItemDetail() {
 
           <div className="flex flex-wrap gap-2">
             <button className="btn btn-primary" onClick={() => setEditing(true)}>
-              <Icon name="edit" size={15} /> Edit
+              <Icon name="edit" size={16} /> Edit
             </button>
             <button className="btn" disabled={busy}
                     onClick={() => act(() => api.logWear({ item_ids: [item.id] }), 'Wear logged.')}>
-              <Icon name="check" size={15} /> Log a wear
+              <Icon name="check" size={16} /> Log a wear
             </button>
             {item.launderable && (
               <button className="btn" disabled={busy}
                       onClick={() => act(() => api.wash({ item_ids: [item.id] }), 'Marked as washed.')}>
-                <Icon name="drop" size={15} /> Mark washed
+                <Icon name="drop" size={16} /> Mark washed
               </button>
             )}
-            <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={15} /> Remove</button>
+            <button className="btn btn-ghost" onClick={remove}><Icon name="trash" size={16} /> Remove</button>
           </div>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="card px-3 py-2.5">
               <p className="label">Worn</p>
               <p className="mt-0.5 text-xl font-bold tabular-nums">{item.total_wears}</p>
-              {item.last_worn && <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>last {item.last_worn}</p>}
+              {item.last_worn && <p className="text-2xs" style={{ color: 'var(--muted)' }}>last {item.last_worn}</p>}
             </div>
             <div className="card px-3 py-2.5">
               <p className="label">Since wash</p>
@@ -308,7 +308,7 @@ export default function ItemDetail() {
                 {item.launderable ? `${item.wears_since_wash}/${item.wash_threshold}` : '—'}
               </p>
               {item.launderable && (
-                <p className="text-[0.7rem]" style={{ color: item.needs_wash ? 'var(--bad)' : 'var(--muted)' }}>
+                <p className="text-2xs" style={{ color: item.needs_wash ? 'var(--bad)' : 'var(--muted)' }}>
                   {item.needs_wash ? 'wash it' : `${item.wears_left} left`}
                 </p>
               )}
@@ -318,14 +318,14 @@ export default function ItemDetail() {
               <p className="mt-0.5 text-xl font-bold">
                 {addsWarmth ? (warmthBand?.label ?? '—') : 'None'}
               </p>
-              <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>
+              <p className="text-2xs" style={{ color: 'var(--muted)' }}>
                 {addsWarmth ? (warmthBand?.hint ?? '') : 'adds no warmth'}
               </p>
             </div>
             <div className="card px-3 py-2.5">
               <p className="label">Formality</p>
               <p className="mt-0.5 text-xl font-bold">{formalityBand?.label ?? '—'}</p>
-              <p className="text-[0.7rem]" style={{ color: 'var(--muted)' }}>
+              <p className="text-2xs" style={{ color: 'var(--muted)' }}>
                 {formalityBand?.hint ?? ''}
               </p>
             </div>
@@ -358,9 +358,9 @@ export default function ItemDetail() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                <EmptyNote>
                   No care instructions yet. Add them so laundry loads get grouped correctly.
-                </p>
+                </EmptyNote>
               )}
               {care?.raw_symbols?.length > 0 && (
                 <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>
@@ -423,7 +423,7 @@ export default function ItemDetail() {
                         </span>
                       )}
                       <button
-                        className="btn btn-ghost !p-1" title="Delete this wear"
+                        className="btn btn-ghost btn-icon" title="Delete this wear"
                         disabled={busy} onClick={() => removeWear(w)}
                       >
                         <Icon name="trash" size={14} />
@@ -433,9 +433,7 @@ export default function ItemDetail() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                Not worn yet. Log a wear and it will appear here.
-              </p>
+              <EmptyNote boxed>Not worn yet. Log a wear and it will appear here.</EmptyNote>
             )}
             {item.worn_history?.length > 0 && (
               <p className="text-xs" style={{ color: 'var(--muted)' }}>

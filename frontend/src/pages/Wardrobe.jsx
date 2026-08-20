@@ -9,7 +9,8 @@ import ImageEditor from '../components/ImageEditor.jsx'
 import { Swatch } from '../components/ColourField.jsx'
 import CareForm, { careFormPayload, careFormState, careIsSet } from '../components/CareForm.jsx'
 import {
-  Chip, EmptyState, ErrorNote, Field, Icon, Modal, Spinner, titleCase, useToast,
+  Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Spinner, titleCase,
+  useToast,
 } from '../components/ui.jsx'
 
 const SORTS = [
@@ -79,7 +80,7 @@ function TagSheet({ open, items, onClose, onDone }) {
             <button className="btn" onClick={() => goTo(index - 1)} disabled={busy}>Back</button>
           )}
           <button className="btn btn-primary" onClick={() => save()} disabled={busy}>
-            {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />}
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
             {last ? 'Save and finish' : 'Save and next'}
           </button>
         </>
@@ -199,7 +200,7 @@ function UploadSheet({ open, onClose, onDone }) {
         <>
           <button className="btn" onClick={reset} disabled={busy}>Cancel</button>
           <button className="btn btn-primary" onClick={upload} disabled={busy || !queue.length}>
-            {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />}
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />}
             Add {queue.length || ''}
           </button>
         </>
@@ -239,7 +240,7 @@ function UploadSheet({ open, onClose, onDone }) {
               className="card flex w-full items-start gap-3 px-3 py-2.5 text-left"
               style={mode === 'manual' ? { borderColor: 'var(--accent)' } : undefined}
             >
-              <Icon name="edit" size={17} style={{ color: 'var(--accent)', marginTop: 2 }} />
+              <Icon name="edit" size={18} style={{ color: 'var(--accent)', marginTop: 2 }} />
               <span>
                 <span className="block text-sm font-semibold">Tag them myself</span>
                 <span className="block text-xs" style={{ color: 'var(--muted)' }}>
@@ -258,7 +259,7 @@ function UploadSheet({ open, onClose, onDone }) {
                 opacity: aiAvailable ? 1 : 0.55,
               }}
             >
-              <Icon name="sparkle" size={17} style={{ color: 'var(--accent)', marginTop: 2 }} />
+              <Icon name="sparkle" size={18} style={{ color: 'var(--accent)', marginTop: 2 }} />
               <span>
                 <span className="block text-sm font-semibold">Let AI tag them</span>
                 <span className="block text-xs" style={{ color: 'var(--muted)' }}>
@@ -284,19 +285,19 @@ function UploadSheet({ open, onClose, onDone }) {
                     setQueue((qq) => qq.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
                 />
                 <button
-                  className="btn btn-ghost shrink-0 !px-2" disabled={busy}
+                  className="btn btn-ghost btn-icon shrink-0" disabled={busy}
                   title="Rotate or crop this photo"
                   onClick={() => setEditing(i)}
                 >
                   <Icon name="crop" size={16} />
                   {q.edited && (
-                    <span className="text-[0.65rem] font-bold" style={{ color: 'var(--accent)' }}>
+                    <span className="text-2xs font-bold" style={{ color: 'var(--accent)' }}>
                       edited
                     </span>
                   )}
                 </button>
                 <span className="w-5 shrink-0 text-center">
-                  {q.state === 'uploading' && <Spinner size={15} />}
+                  {q.state === 'uploading' && <Spinner size={16} />}
                   {q.state === 'done' && <Icon name="check" size={16} style={{ color: 'var(--good)' }} />}
                   {q.state === 'error' && <span title={q.error} style={{ color: 'var(--bad)' }}>!</span>}
                 </span>
@@ -385,21 +386,35 @@ export default function Wardrobe() {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--muted)' }}>
-            <Icon name="search" size={16} />
-          </span>
-          <input
-            className="input pl-9" placeholder="Search name, brand, material…"
-            value={search} onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <button className="btn btn-primary shrink-0" onClick={() => setUploadOpen(true)}>
-          <Icon name="plus" size={16} /> <span className="hidden sm:inline">Add item</span>
-        </button>
+    <div className="space-y-6">
+      <PageHeader
+        title="Wardrobe"
+        description="Everything you own, and what the app knows about it."
+        action={
+          <button className="btn btn-primary" onClick={() => setUploadOpen(true)}>
+            <Icon name="plus" size={16} /> Add item
+          </button>
+        }
+      />
+
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+              style={{ color: 'var(--muted)' }}>
+          <Icon name="search" size={16} />
+        </span>
+        <input
+          className="input pl-9 pr-9" type="search" placeholder="Search name, brand, material…"
+          value={search} onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button
+            type="button" onClick={() => setSearch('')} aria-label="Clear search"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1"
+            style={{ color: 'var(--muted)' }}
+          >
+            <Icon name="close" size={14} />
+          </button>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -418,16 +433,15 @@ export default function Wardrobe() {
             </span>
           )}
         </div>
+        {/* Sort used to sit on the end of this row behind a hairline divider,
+            which put an ordering control inside a row of filters and read as one
+            long undifferentiated strip. It lives with the result count now. */}
         <div className="rail">
           <Chip active={!status} onClick={() => setStatus('')}>Any status</Chip>
           {(meta.statuses || []).map((s) => (
             <Chip key={s} active={status === s} onClick={() => setStatus(status === s ? '' : s)}>
               {titleCase(s)}
             </Chip>
-          ))}
-          <span className="mx-1 w-px shrink-0" style={{ background: 'var(--border)' }} />
-          {SORTS.map(([value, label]) => (
-            <Chip key={value} active={sort === value} onClick={() => setSort(value)}>{label}</Chip>
           ))}
         </div>
         {owned.length > 1 && (
@@ -436,7 +450,7 @@ export default function Wardrobe() {
             {owned.map((c) => (
               <Chip key={c.name} active={colour === c.name}
                     onClick={() => setColour(colour === c.name ? '' : c.name)}>
-                <Swatch hex={c.hex} size={11} /> {titleCase(c.name)}
+                <Swatch hex={c.hex} size={12} /> {titleCase(c.name)}
               </Chip>
             ))}
           </div>
@@ -446,16 +460,28 @@ export default function Wardrobe() {
       <ErrorNote error={error} onRetry={reload} />
 
       {loading && !data ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 8 }).map((_, i) =>
             <div key={i} className="skeleton aspect-[3/4] rounded-2xl" />)}
         </div>
       ) : (
         <>
           {items.length > 0 && (
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              {items.length} item{items.length === 1 ? '' : 's'}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                {items.length} item{items.length === 1 ? '' : 's'}
+                {filtering && ' matching'}
+              </p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>Sort</span>
+                <select className="select !w-auto !py-1 text-xs" value={sort}
+                        onChange={(e) => setSort(e.target.value)} aria-label="Sort items">
+                  {SORTS.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           )}
           <ItemGrid
             items={items}
@@ -468,7 +494,7 @@ export default function Wardrobe() {
                   : 'Photograph a few things you actually wear. Everything else builds on top of that.'}
                 action={
                   <button className="btn btn-primary" onClick={() => setUploadOpen(true)}>
-                    <Icon name="camera" size={15} /> Add your first item
+                    <Icon name="camera" size={16} /> Add your first item
                   </button>
                 }
               />

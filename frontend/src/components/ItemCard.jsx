@@ -15,12 +15,21 @@ export function ItemPhoto({ item, className = '', rounded = 'rounded-xl', full =
       </div>
     )
   }
+  // The placeholder sits behind the photo rather than instead of it. Forty-seven
+  // lazy thumbnails do not arrive at once, and an empty card for a second reads
+  // as a broken one; a hanger reads as a photo on its way.
   return (
-    <img
-      src={url} alt={item.name} loading="lazy"
-      className={`h-full w-full object-cover ${rounded} ${className}`}
-      style={{ background: 'var(--surface-2)' }}
-    />
+    <span className={`relative block h-full w-full ${rounded} overflow-hidden`}
+          style={{ background: 'var(--surface-2)' }}>
+      <span className="absolute inset-0 flex items-center justify-center"
+            style={{ color: 'var(--border)' }} aria-hidden="true">
+        <Icon name="hanger" size={28} />
+      </span>
+      <img
+        src={url} alt={item.name} loading="lazy" decoding="async"
+        className={`relative h-full w-full object-cover ${rounded} ${className}`}
+      />
+    </span>
   )
 }
 
@@ -34,13 +43,13 @@ export default function ItemCard({ item, selected, onSelect, compact = false }) 
   return (
     <Wrapper
       {...props}
-      className="card group relative block overflow-hidden text-left transition"
+      className="card card-link group relative block overflow-hidden text-left"
       style={selected ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 2px var(--accent)' } : undefined}
     >
       <div className="relative aspect-[3/4] w-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
         <ItemPhoto item={item} rounded="" className="transition duration-300 group-hover:scale-[1.03]" />
         {item.needs_wash && (
-          <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[0.65rem] font-bold text-white"
+          <span className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-2xs font-bold text-white"
                 style={{ background: 'var(--bad)' }}>
             Needs wash
           </span>
@@ -59,13 +68,13 @@ export default function ItemCard({ item, selected, onSelect, compact = false }) 
             {item.category_label || titleCase(item.category)}
             {item.brand ? ` · ${item.brand}` : ''}
           </span>
-          <Palette palette={item.palette} size={11} max={3} />
+          <Palette palette={item.palette} size={12} max={3} />
         </div>
         {!compact && (
           <div className="mt-2 flex items-center justify-between gap-2">
             <StatusPill status={item.status} />
             {item.launderable && item.wears_left !== null && (
-              <span className="text-[0.68rem] tabular-nums" style={{ color: 'var(--muted)' }}>
+              <span className="text-2xs tabular-nums" style={{ color: 'var(--muted)' }}>
                 {item.wears_left === 0 ? 'wash now' : `${item.wears_left} wear${item.wears_left === 1 ? '' : 's'} left`}
               </span>
             )}
@@ -80,7 +89,7 @@ export function ItemGrid({ items, selectedIds, onSelect, compact, empty }) {
   if (!items?.length) return empty || null
   const selected = new Set(selectedIds || [])
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {items.map((item) => (
         <ItemCard
           key={item.id}

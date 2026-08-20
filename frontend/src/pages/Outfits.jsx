@@ -5,8 +5,8 @@ import { useMeta } from '../App.jsx'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  Chip, EmptyState, ErrorNote, Field, Icon, Modal, Section, Spinner, titleCase,
-  useConfirm, useToast,
+  Chip, EmptyState, ErrorNote, Field, Icon, Modal, PageHeader, Section, Spinner,
+  titleCase, useConfirm, useToast,
 } from '../components/ui.jsx'
 
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
@@ -52,7 +52,7 @@ function Builder({ open, onClose, onSaved, existing }) {
       footer={<>
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner size={15} /> : <Icon name="check" size={15} />} Save
+          {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
         </button>
       </>}>
       <div className="space-y-4">
@@ -77,7 +77,7 @@ function Builder({ open, onClose, onSaved, existing }) {
                 <button key={i.id} onClick={() => toggle(i.id)} className="relative w-16 shrink-0" title="Remove">
                   <div className="aspect-[3/4] overflow-hidden rounded-lg"><ItemPhoto item={i} rounded="rounded-lg" /></div>
                   <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                        style={{ background: 'var(--bad)' }}><Icon name="close" size={11} /></span>
+                        style={{ background: 'var(--bad)' }}><Icon name="close" size={12} /></span>
                 </button>
               ))}
             </div>
@@ -101,11 +101,12 @@ function Builder({ open, onClose, onSaved, existing }) {
                 <ItemPhoto item={i} rounded="" />
                 {i.needs_wash && <span className="absolute left-1 top-1 h-2 w-2 rounded-full" style={{ background: 'var(--bad)' }} />}
               </div>
-              <p className="truncate px-1.5 py-1 text-[0.7rem] font-medium">{i.name}</p>
+              <p className="truncate px-1.5 py-1 text-2xs font-medium">{i.name}</p>
             </button>
           ))}
           {!(byLayer[layer] || []).length && (
-            <p className="col-span-full py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>
+            <p className="col-span-full py-6 text-center text-sm"
+               style={{ color: 'var(--muted)' }}>
               Nothing in {titleCase(layer)} yet.
             </p>
           )}
@@ -148,13 +149,17 @@ export default function Outfits() {
   }
 
   return (
-    <div className="space-y-5">
-      <Section
-        title="Saved outfits"
-        action={<button className="btn btn-primary" onClick={() => setBuilding(true)}>
-          <Icon name="plus" size={16} /> Build outfit
-        </button>}
-      >
+    <div className="space-y-6">
+      <PageHeader
+        title="Outfits"
+        description="Combinations worth keeping, so you do not rebuild them each time."
+        action={
+          <button className="btn btn-primary" onClick={() => setBuilding(true)}>
+            <Icon name="plus" size={16} /> Build outfit
+          </button>
+        }
+      />
+      <Section>
         <ErrorNote error={error} onRetry={reload} />
         {loading && !data && <div className="space-y-3">{[0, 1].map((i) => <div key={i} className="skeleton h-40 rounded-2xl" />)}</div>}
 
@@ -163,7 +168,7 @@ export default function Outfits() {
             icon="layers" title="No outfits saved yet"
             hint="Save the combinations you keep coming back to, then log them in one tap."
             action={<button className="btn btn-primary" onClick={() => setBuilding(true)}>
-              <Icon name="plus" size={15} /> Build your first outfit
+              <Icon name="plus" size={16} /> Build your first outfit
             </button>}
           />
         )}
@@ -178,9 +183,9 @@ export default function Outfits() {
                     {titleCase(o.occasion || 'any')} · warmth {o.total_warmth} · worn {o.times_worn}×
                   </p>
                 </div>
-                <button className="btn btn-ghost !p-1.5" title="Favourite"
+                <button className="btn btn-ghost btn-icon" title="Favourite"
                         onClick={async () => { await api.favouriteOutfit(o.id); reload(true) }}>
-                  <Icon name="star" size={17} style={{ color: o.is_favourite ? 'var(--accent)' : 'var(--muted)',
+                  <Icon name="star" size={18} style={{ color: o.is_favourite ? 'var(--accent)' : 'var(--muted)',
                                                        fill: o.is_favourite ? 'var(--accent)' : 'none' }} />
                 </button>
               </div>
@@ -201,10 +206,10 @@ export default function Outfits() {
 
               <div className="flex gap-2 px-4 pb-3">
                 <button className="btn btn-primary flex-1" onClick={() => wear(o)} disabled={busy === o.id}>
-                  {busy === o.id ? <Spinner size={15} /> : <Icon name="check" size={15} />} Wear today
+                  {busy === o.id ? <Spinner size={16} /> : <Icon name="check" size={16} />} Wear today
                 </button>
-                <button className="btn" onClick={() => setEditing(o)}><Icon name="edit" size={15} /></button>
-                <button className="btn btn-ghost" onClick={() => remove(o)}><Icon name="trash" size={15} /></button>
+                <button className="btn" onClick={() => setEditing(o)}><Icon name="edit" size={16} /></button>
+                <button className="btn btn-ghost" onClick={() => remove(o)}><Icon name="trash" size={16} /></button>
               </div>
             </div>
           ))}
