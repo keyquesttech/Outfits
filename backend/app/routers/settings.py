@@ -12,7 +12,7 @@ ALLOWED = {
     "ai_provider", "gemini_api_key", "gemini_model", "gemini_image_model",
     "latitude", "longitude", "timezone", "location_name", "units", "warmth_offset",
     "weather_provider", "metoffice_api_key", "metoffice_optimize",
-    "warnings_enabled",
+    "warnings_enabled", "style_notes",
 }
 
 

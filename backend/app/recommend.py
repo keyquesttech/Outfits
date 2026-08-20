@@ -53,6 +53,14 @@ def personal_offset(limit: int = 40) -> float:
 
 def record_comfort(apparent_c: float, outfit_warmth: float, verdict: int,
                    wear_log_id: int | None = None) -> float:
+    """One verdict per wear.
+
+    Changing a rating, or moving a wear to a different day and re-recording it
+    against that day's weather, must replace what was there — inserting a second
+    row would count the same opinion twice and drag the offset with it.
+    """
+    if wear_log_id is not None:
+        db.execute("DELETE FROM comfort_feedback WHERE wear_log_id = ?", (wear_log_id,))
     db.execute(
         "INSERT INTO comfort_feedback(wear_log_id, apparent_c, outfit_warmth, verdict) "
         "VALUES (?,?,?,?)",

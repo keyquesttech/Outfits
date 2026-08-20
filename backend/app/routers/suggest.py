@@ -50,6 +50,16 @@ def weather_warnings(region: str | None = None, refresh: bool = False,
     return weather.warnings.fetch(region, force=refresh, today_only=today_only)
 
 
+@router.get("/weather/on/{day}")
+def weather_on(day: str, refresh: bool = False):
+    """What the weather did on a past day.
+
+    Used when back-dating a wear, so the outfit is scored against the day it was
+    actually worn in rather than against this afternoon.
+    """
+    return weather.on_date(day, force=refresh)
+
+
 @router.get("/geoip")
 def geoip(refresh: bool = False):
     """Approximate location from the public IP.
@@ -144,11 +154,35 @@ def _ai_suggestion(conditions: dict, payload: SuggestIn) -> dict:
     if not wardrobe:
         return {"available": False, "reason": "Wardrobe is empty"}
 
+    # What was worn lately, and anything said about it. Notes are where the
+    # things the tags cannot hold end up — "collar too tight", "got soaked",
+    # "wore this to the same meeting last week" — and they are exactly the
+    # context a stylist would want on top of the wardrobe itself.
+    recent = []
+    for log in db.query(
+        "SELECT worn_on, occasion, notes, rating, comfort_rating FROM wear_log "
+        "ORDER BY worn_on DESC, id DESC LIMIT 12"
+    ):
+        names = [r["name"] for r in db.query(
+            "SELECT items.name FROM items JOIN wear_log_items wli ON wli.item_id = items.id "
+            "JOIN wear_log wl ON wl.id = wli.wear_log_id "
+            "WHERE wl.worn_on = ? LIMIT 8", (log["worn_on"],))]
+        entry = {"date": log["worn_on"], "items": names}
+        for key in ("occasion", "notes", "rating"):
+            if log.get(key):
+                entry[key] = log[key]
+        if log.get("comfort_rating") is not None:
+            entry["felt"] = {-1: "too cold", 0: "just right", 1: "too hot"}[
+                int(log["comfort_rating"])]
+        recent.append(entry)
+
     try:
         raw = provider.suggest_outfit({
             "weather_summary": conditions.get("summary"),
             "occasion": payload.occasion,
             "items": wardrobe,
+            "recent_wears": recent,
+            "style_notes": db.get_setting("style_notes", ""),
         })
     except Exception as exc:
         return {"available": False, "reason": str(exc)}

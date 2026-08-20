@@ -39,6 +39,9 @@ DEFAULT_SETTINGS = {
     "metoffice_usage_calls": "0",
     "warnings_enabled": "1",
     "warnings_region": "uk",
+    # Free text handed to the AI stylist alongside the wardrobe, for the
+    # things no tag holds: what you will not wear, how you like things to sit.
+    "style_notes": "",
 }
 
 

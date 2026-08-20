@@ -9,6 +9,42 @@ from ..serializers import load_items
 router = APIRouter(prefix="/api/wear", tags=["wear"])
 
 
+def _weather_for(worn_on: str) -> tuple:
+    """(temp, apparent, condition) for the day a wear happened.
+
+    Today comes from the live forecast; any earlier day is looked up in the
+    historical record, so a back-dated outfit is scored against the weather it
+    was actually worn in.
+    """
+    if worn_on == date.today().isoformat():
+        current = (weather.fetch().get("current") or {})
+        return (current.get("temp_c"), current.get("apparent_c"),
+                (current.get("condition") or {}).get("label"))
+    past = weather.on_date(worn_on)
+    if not past.get("available"):
+        return (None, None, None)
+    return (past.get("temp_c"), past.get("apparent_c"),
+            (past.get("condition") or {}).get("label"))
+
+
+def _refresh_last_worn(item_ids: list[int]) -> None:
+    """Recompute `items.last_worn` from the log.
+
+    The column is a cache of the newest wear, maintained forward-only when a
+    wear is recorded. Moving a wear to a different day can make it wrong in
+    either direction, so it is recomputed from the rows that actually exist.
+    """
+    if not item_ids:
+        return
+    marks = ",".join("?" * len(item_ids))
+    db.execute(
+        f"UPDATE items SET last_worn = (SELECT MAX(wl.worn_on) FROM wear_log wl "
+        f"JOIN wear_log_items wli ON wli.wear_log_id = wl.id "
+        f"WHERE wli.item_id = items.id) WHERE id IN ({marks})",
+        tuple(item_ids),
+    )
+
+
 def _hydrate(row: dict) -> dict:
     log = dict(row)
     ids = [r["item_id"] for r in db.query(
@@ -52,14 +88,12 @@ def log_wear(payload: WearIn):
     temp_c, apparent_c = payload.temp_c, payload.apparent_c
     condition = payload.condition
 
-    # Only stamp live conditions on a wear logged for today. Back-filling last
+    # Live conditions belong only on a wear logged for today. Back-filling last
     # Tuesday with this afternoon's weather would poison the calibration, which
-    # learns from the gap between what you wore and how warm it actually was.
-    if payload.use_weather and apparent_c is None and worn_on == date.today().isoformat():
-        current = (weather.fetch().get("current") or {})
-        temp_c = current.get("temp_c")
-        apparent_c = current.get("apparent_c")
-        condition = (current.get("condition") or {}).get("label")
+    # learns from the gap between what you wore and how warm it actually was —
+    # so a past day gets that day's real weather looked up instead.
+    if payload.use_weather and apparent_c is None:
+        temp_c, apparent_c, condition = _weather_for(worn_on)
 
     log_id = db.execute(
         "INSERT INTO wear_log(worn_on, outfit_id, occasion, comfort_rating, rating, "
@@ -138,10 +172,37 @@ def update_wear(wear_id: int, payload: WearPatch):
         else:
             offset = _record_comfort(wear_id, row, int(verdict))
 
-    updates = {k: v for k, v in fields.items() if k in ("rating", "occasion", "notes")}
+    refresh_weather = fields.pop("refresh_weather", True)
+    updates = {k: v for k, v in fields.items()
+               if k in ("rating", "occasion", "notes", "worn_on")}
+
+    moved = "worn_on" in updates and updates["worn_on"] != row["worn_on"]
+    if moved:
+        try:
+            date.fromisoformat(updates["worn_on"])
+        except (TypeError, ValueError):
+            raise HTTPException(400, "worn_on must be a date like 2026-08-19") from None
+        if updates["worn_on"] > date.today().isoformat():
+            raise HTTPException(400, "That day has not happened yet")
+        if refresh_weather:
+            temp_c, apparent_c, condition = _weather_for(updates["worn_on"])
+            updates.update({"temp_c": temp_c, "apparent_c": apparent_c,
+                            "condition": condition})
+
     if updates:
         sets = ", ".join(f"{k} = ?" for k in updates)
         db.execute(f"UPDATE wear_log SET {sets} WHERE id = ?", (*updates.values(), wear_id))
+
+    if moved:
+        ids = [r["item_id"] for r in db.query(
+            "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))]
+        _refresh_last_worn(ids)
+        # A comfort verdict was given against the old day's weather. Re-record it
+        # against the new one so the calibration is not learning from a mismatch.
+        fresh = db.query_one("SELECT * FROM wear_log WHERE id = ?", (wear_id,))
+        if fresh.get("comfort_rating") is not None:
+            offset = _record_comfort(wear_id, fresh, int(fresh["comfort_rating"]))
+        row = fresh
 
     calibrated = offset is not None and row.get("apparent_c") is not None
     return {
@@ -186,6 +247,7 @@ def remove_item_from_wear(wear_id: int, item_id: int):
     db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ? AND item_id = ?",
                (wear_id, item_id))
     wash.undo_wear([item_id])
+    _refresh_last_worn([item_id])
 
     remaining = [i for i in ids if i != item_id]
     if not remaining:
@@ -208,6 +270,8 @@ def delete_wear(wear_id: int):
         "SELECT item_id FROM wear_log_items WHERE wear_log_id = ?", (wear_id,)
     )]
     wash.undo_wear(ids)
+    db.execute("DELETE FROM wear_log_items WHERE wear_log_id = ?", (wear_id,))
+    _refresh_last_worn(ids)
     if row.get("outfit_id"):
         db.execute("UPDATE outfits SET times_worn = MAX(0, times_worn - 1) WHERE id = ?",
                    (row["outfit_id"],))

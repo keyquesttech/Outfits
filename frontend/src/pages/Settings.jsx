@@ -558,6 +558,19 @@ export default function Settings() {
             tag by hand. AI adds automatic tagging, care-label reading, and a stylist suggestion.
           </p>
 
+          {/* The wardrobe tells the stylist what you own. This tells it what you
+              would actually wear, which no tag on an individual garment can. */}
+          <Field
+            label="How you like to dress"
+            hint="Handed to the AI stylist with the wardrobe. Notes on individual wears are read too."
+          >
+            <textarea
+              className="textarea" rows={3} value={form.style_notes || ''}
+              placeholder="Mostly black and charcoal. Workwear and boots over anything smart. No visible logos. Never tuck a shirt in."
+              onChange={(e) => set({ style_notes: e.target.value }, TYPING)}
+            />
+          </Field>
+
           <Field label="Provider">
             <div className="flex gap-2">
               {(data.providers || []).map((p) => (

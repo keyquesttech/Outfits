@@ -126,9 +126,24 @@ they do not turn up in a suggestion for work.
 like everything else, they never enter the wash pile, and metal tones are treated as
 metal rather than as a clashing colour.
 
-**Wear history.** Every item lists when it was worn, for what, how the weather felt and
-how you rated it. Any entry can be deleted, which puts the wear counters back — including
-progress towards the next wash.
+**Wear history.** The History tab lists everything logged as worn, grouped by day, with
+the weather it was worn in. Every entry can be rated — *too cold / just right / too hot*,
+plus stars — and the comfort verdict is what shifts the warmth calibration towards how
+*you* feel a temperature. Entries can be deleted, which puts the wear counters back, or
+have a single garment taken out of them.
+
+**Back-date what you forgot to log.** Change an entry's date and the app looks up the
+weather that day actually had — Open-Meteo's archive, free and keyless, reaching back
+decades — rather than stamping this afternoon's temperature on last Tuesday. Days are
+cached, and a whole window is fetched at once, so filling in a week costs one request. Any
+comfort rating is re-recorded against the new day's weather, because a verdict of "too
+cold" means something different at 4 °C than at 22 °C.
+
+**Notes on a wear** hold what no tag can — the collar was tight, it rained, this went to
+the same meeting last week. The AI stylist reads recent wears and their notes alongside the
+wardrobe, together with the standing style notes in Settings.
+
+Every item also lists when it was worn, for what, how the weather felt and how you rated it.
 
 **Analytics.** Most and least worn, things untouched for 90 days, colour distribution,
 repeated pairings, laundry history, and gaps limiting your suggestions. The wardrobe can
@@ -253,6 +268,7 @@ invented. They run under pytest, and on their own where pytest is not installed:
 ```bash
 PYTHONPATH=backend .venv/bin/python backend/tests/test_colours.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_categories.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_history.py
 ```
 
 ---

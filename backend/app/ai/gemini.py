@@ -97,19 +97,41 @@ class GeminiProvider(Provider):
         return None
 
     def suggest_outfit(self, context: dict) -> dict | None:
-        prompt = (
-            "You are a personal stylist choosing one outfit from a real wardrobe.\n"
-            f"Weather: {context.get('weather_summary')}\n"
-            f"Occasion: {context.get('occasion') or 'everyday'}\n"
-            f"Notes: {context.get('notes') or 'none'}\n\n"
+        recent = context.get("recent_wears") or []
+        style = (context.get("style_notes") or "").strip()
+
+        parts = [
+            "You are a personal stylist choosing one outfit from a real wardrobe.",
+            f"Weather: {context.get('weather_summary')}",
+            f"Occasion: {context.get('occasion') or 'everyday'}",
+        ]
+        if style:
+            parts.append(f"How this person likes to dress: {style}")
+        parts.append("")
+        parts.append(
             "Pick items from this list only, using their numeric ids. Choose one "
             "coherent outfit: a top, a bottom (or a dress), footwear, plus outer "
             "layers if the weather needs them, and at most two accessories.\n"
-            "Every item's warmth is 1-10 and formality 1-5.\n\n"
-            f"Wardrobe:\n{json.dumps(context.get('items', []), separators=(',', ':'))}\n\n"
-            "Explain the choice in two sentences, referring to weather and colour."
+            "Every item's warmth is 1-10 and formality 1-5."
         )
-        return self._structured(prompt, OUTFIT_SCHEMA, None)
+        parts.append("")
+        parts.append(f"Wardrobe:\n{json.dumps(context.get('items', []), separators=(',', ':'))}")
+
+        if recent:
+            # The notes on past wears carry what the tags cannot: that a collar
+            # was tight, that it rained, that this went to the same meeting last
+            # week. Worth more to a stylist than another warmth number.
+            parts += [
+                "",
+                "Recently worn, newest first, with anything noted about each. Use "
+                "this: avoid repeating a recent outfit, respect what was said, and "
+                "lean towards what was rated well.",
+                json.dumps(recent, separators=(",", ":")),
+            ]
+
+        parts += ["", "Explain the choice in two sentences, referring to the weather, "
+                      "the colours, and anything in the notes you acted on."]
+        return self._structured("\n".join(parts), OUTFIT_SCHEMA, None)
 
     def check(self) -> dict:
         try:

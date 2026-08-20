@@ -111,7 +111,10 @@ class WearIn(BaseModel):
 
 
 class WearPatch(BaseModel):
-    """Feedback on a wear that has already been logged."""
+    """Feedback on a wear that has already been logged, and its date."""
+    worn_on: str | None = None
+    # Set when moving a wear to a different day: re-read that day's weather.
+    refresh_weather: bool = True
     comfort_rating: int | None = Field(default=None, ge=-1, le=1)
     rating: int | None = Field(default=None, ge=1, le=5)
     occasion: str | None = None

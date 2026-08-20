@@ -93,6 +93,7 @@ export const api = {
   weatherProviders: () => get('/api/weather/providers'),
   weatherUsage: () => get('/api/weather/usage'),
   weatherWarnings: (region) => get('/api/weather/warnings' + qs({ region })),
+  weatherOn: (day) => get(`/api/weather/on/${day}`),
   testWeather: (provider, api_key) => post('/api/weather/test', { provider, api_key }),
   geocode: (q) => get('/api/geocode' + qs({ q })),
   geoip: (refresh = false) => get('/api/geoip' + (refresh ? '?refresh=true' : '')),

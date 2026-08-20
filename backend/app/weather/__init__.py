@@ -7,7 +7,7 @@ recommender, the wear log, the UI — needs to know which service supplied it.
 import time
 
 from .. import db
-from . import geoip, metoffice, openmeteo, warnings
+from . import geoip, history, metoffice, openmeteo, warnings
 from .codes import describe  # re-exported; callers still do weather.describe(...)
 
 PROVIDERS = {
@@ -22,7 +22,12 @@ DEFAULT_TTL = 5 * 3600
 _cache: dict = {"at": 0.0, "key": None, "data": None}
 
 __all__ = ["fetch", "describe", "geocode", "check", "locate_by_ip", "warnings",
-           "geoip", "PROVIDERS", "provider_info"]
+           "geoip", "history", "on_date", "PROVIDERS", "provider_info"]
+
+
+def on_date(day: str, force: bool = False) -> dict:
+    """Weather for a day that has already happened. See `weather.history`."""
+    return history.for_date(day, force=force)
 
 
 def _settings() -> dict:

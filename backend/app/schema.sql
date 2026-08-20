@@ -153,6 +153,24 @@ CREATE TABLE IF NOT EXISTS item_tags (
   PRIMARY KEY (item_id, tag_id)
 );
 
+-- Past weather, one row per day and place. Back-dating a wear needs the weather
+-- of that day, and the comfort calibration is only honest if it gets the real
+-- one rather than today's temperature stamped on a week-old outfit. Cached
+-- because a day that has already happened does not change.
+CREATE TABLE IF NOT EXISTS weather_days (
+  day        TEXT NOT NULL,
+  lat        REAL NOT NULL,
+  lon        REAL NOT NULL,
+  temp_c     REAL,
+  apparent_c REAL,
+  rain_chance REAL,
+  wind_kph   REAL,
+  code       INTEGER,
+  condition  TEXT,
+  fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (day, lat, lon)
+);
+
 CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,
   value TEXT

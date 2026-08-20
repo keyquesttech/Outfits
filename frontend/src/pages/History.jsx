@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 import { useAsync } from '../hooks.js'
 import { ItemPhoto } from '../components/ItemCard.jsx'
 import {
-  EmptyState, ErrorNote, Icon, PageHeader, Section, Spinner, titleCase, useConfirm,
-  useToast,
+  EmptyState, ErrorNote, Field, Icon, PageHeader, Section, Spinner, titleCase,
+  useConfirm, useToast,
 } from '../components/ui.jsx'
 
 /**
@@ -22,6 +22,76 @@ function dayLabel(iso) {
   const label = worn.toLocaleDateString(undefined,
     { weekday: 'short', day: 'numeric', month: 'short' })
   return days < 365 ? label : `${label} ${worn.getFullYear()}`
+}
+
+const TODAY = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * Move a wear to another day, and say something about it.
+ *
+ * Back-dating is the point of this: an outfit worn last Tuesday is only worth
+ * recording if it is scored against last Tuesday's weather, so changing the date
+ * looks that day's real conditions up rather than leaving this afternoon's
+ * stamped on it. The comfort verdict is re-recorded against the new day too.
+ */
+function Details({ wear, busy, onSave }) {
+  const [day, setDay] = useState(wear.worn_on)
+  const [notes, setNotes] = useState(wear.notes || '')
+  const [preview, setPreview] = useState(null)
+
+  // Show what the weather did on the day being chosen, before committing to it.
+  useEffect(() => {
+    let live = true
+    if (!day || day === wear.worn_on) { setPreview(null); return }
+    api.weatherOn(day)
+      .then((w) => { if (live) setPreview(w) })
+      .catch(() => { if (live) setPreview(null) })
+    return () => { live = false }
+  }, [day, wear.worn_on])
+
+  const dirty = day !== wear.worn_on || notes !== (wear.notes || '')
+
+  return (
+    <div className="mt-3 space-y-3 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex flex-wrap items-end gap-3">
+        <Field label="Worn on">
+          <input
+            className="input !w-auto" type="date" value={day} max={TODAY()}
+            onChange={(e) => setDay(e.target.value)}
+          />
+        </Field>
+        {preview && (
+          <p className="pb-2 text-xs" style={{ color: 'var(--muted)' }}>
+            {preview.available
+              ? `That day: ${preview.condition?.label || '—'}, felt like ${Math.round(preview.apparent_c)} °C`
+              : preview.reason}
+          </p>
+        )}
+      </div>
+
+      <Field label="Notes"
+             hint="Anything the tags cannot hold. The AI stylist reads these alongside the wardrobe.">
+        <textarea
+          className="textarea" rows={2} value={notes}
+          placeholder="Collar felt tight · got soaked · same meeting as last week"
+          onChange={(e) => setNotes(e.target.value)}
+        />
+      </Field>
+
+      {dirty && (
+        <div className="flex gap-2">
+          <button className="btn btn-primary" disabled={busy}
+                  onClick={() => onSave({ worn_on: day, notes: notes.trim() || null })}>
+            {busy ? <Spinner size={16} /> : <Icon name="check" size={16} />} Save
+          </button>
+          <button className="btn" disabled={busy}
+                  onClick={() => { setDay(wear.worn_on); setNotes(wear.notes || '') }}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 const COMFORT_CHOICES = [
@@ -127,7 +197,7 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
         </div>
         <button
           className="btn btn-ghost btn-icon" disabled={working}
-          title="Remove a single item from this wear"
+          title="Change the date, add notes, or remove an item"
           onClick={() => setEditing((v) => !v)}
         >
           {editing ? <Icon name="check" size={16} /> : <Icon name="edit" size={16} />}
@@ -177,9 +247,11 @@ function WearCard({ wear, busy, onDeleteWear, onRemoveItem, onFeedback }) {
         </p>
       )}
 
-      {wear.notes && (
-        <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{wear.notes}</p>
-      )}
+      {editing
+        ? <Details wear={wear} busy={working} onSave={(patch) => onFeedback(wear, patch)} />
+        : wear.notes && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>{wear.notes}</p>
+          )}
 
       <Feedback wear={wear} busy={working} onSave={(patch) => onFeedback(wear, patch)} />
     </div>
@@ -216,7 +288,12 @@ export default function History() {
     setBusy(wear.id)
     try {
       const res = await api.updateWear(wear.id, patch)
-      if ('comfort_rating' in patch && patch.comfort_rating !== null) {
+      if ('worn_on' in patch) {
+        const felt = res.wear.apparent_c
+        toast(felt != null
+          ? `Moved to ${res.wear.worn_on}, scored against that day at ${Math.round(felt)} °C.`
+          : `Moved to ${res.wear.worn_on}. No weather record for that day.`, 'success')
+      } else if ('comfort_rating' in patch && patch.comfort_rating !== null) {
         toast(res.calibrated
           ? `Noted. Your warmth offset is now ${res.personal_offset > 0 ? '+' : ''}${res.personal_offset}.`
           : 'Noted.', 'success')
