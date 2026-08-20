@@ -148,6 +148,14 @@ class WeatherTestIn(BaseModel):
     api_key: str | None = None
 
 
+class SuggestFeedbackIn(BaseModel):
+    """A verdict on a suggested outfit: 1 liked it, -1 did not."""
+    verdict: int = Field(ge=-1, le=1)
+    item_ids: list[int]
+    occasion: str | None = None
+    day_offset: int = Field(default=0, ge=0, le=4)
+
+
 class SuggestIn(BaseModel):
     occasion: str | None = None
     count: int = Field(default=3, ge=1, le=8)

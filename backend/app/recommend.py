@@ -10,7 +10,7 @@ app converges on how *you* experience 12 °C rather than an average body.
 
 import random
 
-from . import categories, colours, db
+from . import categories, colours, db, taste
 from .constants import LAYER_ORDER
 from .serializers import item_out
 
@@ -247,20 +247,25 @@ def score_outfit(items: list[dict], weather: dict, occasion: str | None,
             reasons.append(f"tagged for {occasion}" if tagged == 1
                            else f"{tagged} pieces tagged for {occasion}")
 
+    breakdown = {
+        "warmth": round(warmth_score, 3),
+        "rain": round(rain_score, 3),
+        "wind": round(wind_score, 3),
+        "formality": round(formality_score, 3),
+        "colour": round(harmony_score, 3),
+        "freshness": round(freshness, 3),
+        "occasion_bonus": round(occasion_bonus, 3),
+    }
+    # Liked and disliked suggestions leave a mark; this is where it lands.
+    total, taste_reasons = taste.adjust(total, items, breakdown)
+    reasons += taste_reasons
+
     return {
         "score": round(total, 4),
         "warmth": warmth,
         "target_warmth": round(target_warmth(apparent) + offset, 1) if apparent is not None else None,
         "reasons": reasons,
-        "breakdown": {
-            "warmth": round(warmth_score, 3),
-            "rain": round(rain_score, 3),
-            "wind": round(wind_score, 3),
-            "formality": round(formality_score, 3),
-            "colour": round(harmony_score, 3),
-            "freshness": round(freshness, 3),
-            "occasion_bonus": round(occasion_bonus, 3),
-        },
+        "breakdown": breakdown,
     }
 
 

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from .. import db, recommend, weather
+from .. import db, recommend, taste, weather
 from ..ai import get_provider
-from ..models import SuggestIn, WeatherTestIn
+from ..models import SuggestFeedbackIn, SuggestIn, WeatherTestIn
 from ..serializers import item_out, load_items
 
 router = APIRouter(prefix="/api", tags=["suggest"])
@@ -210,6 +210,44 @@ def _ai_suggestion(conditions: dict, payload: SuggestIn) -> dict:
         "score": scored.get("score"),
         "warmth": scored.get("warmth"),
     }
+
+
+@router.post("/suggest/feedback", status_code=201)
+def suggest_feedback(payload: SuggestFeedbackIn):
+    """Like or dislike a suggested outfit. This is training data.
+
+    The outfit is re-scored right here so the stored example carries the score
+    components the model learns from — the raw ones, before taste's own
+    adjustments, so the model never trains on its own output.
+    """
+    if payload.verdict not in (-1, 1):
+        raise HTTPException(400, "verdict must be 1 (like) or -1 (dislike)")
+    items = load_items(payload.item_ids)
+    if not items:
+        raise HTTPException(400, "No known items in that outfit")
+    tag_map = recommend.tags_by_item()
+    for item in items:
+        item["tags"] = sorted(tag_map.get(item["id"], set()))
+    conditions = _conditions(payload.day_offset)
+    scored = recommend.score_outfit(items, conditions, payload.occasion,
+                                    recommend.personal_offset())
+    feedback_id = taste.record(
+        payload.verdict, [i["id"] for i in items], payload.occasion,
+        conditions.get("apparent_c"), scored["score"], scored["breakdown"])
+    return {"id": feedback_id, "verdict": payload.verdict, "taste": taste.summary()}
+
+
+@router.delete("/suggest/feedback/{feedback_id}")
+def suggest_feedback_withdraw(feedback_id: int):
+    """Tapping the same thumb again takes the verdict back."""
+    if not taste.withdraw(feedback_id):
+        raise HTTPException(404, "Feedback not found")
+    return {"deleted": feedback_id, "taste": taste.summary()}
+
+
+@router.get("/suggest/taste")
+def suggest_taste():
+    return taste.summary()
 
 
 @router.get("/suggest/calibration")

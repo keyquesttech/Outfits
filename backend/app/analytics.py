@@ -3,7 +3,7 @@
 from collections import Counter
 from datetime import date, timedelta
 
-from . import colours, db
+from . import colours, db, taste
 from .serializers import item_out
 
 
@@ -195,6 +195,7 @@ def gaps() -> list[dict]:
 def full_report() -> dict:
     return {
         "summary": summary(),
+        "taste": taste.summary(),
         "most_worn": most_worn(),
         "least_worn": least_worn(),
         "neglected": neglected(),

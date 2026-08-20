@@ -115,6 +115,15 @@ feed's raw "0900 Thu 20 Aug".
 **Set your location** by searching for a place name, from your device's GPS, or by typing
 coordinates.
 
+**It learns your taste.** Thumb a suggestion up or down and that verdict is a training
+example. Two things learn from it: every item in the outfit gains or loses affinity, so a
+piece you keep disliking stops being suggested whatever else it has going for it; and once
+there are enough verdicts, a small regularised model re-weights the score components —
+warmth, colour, formality and the rest — towards what actually separates your likes from
+your dislikes, blended in gradually and capped so the hand-set scoring stays the backbone.
+Tapping the same thumb again withdraws the verdict. Insights shows what the model
+currently believes: counts, the pieces it is pulled towards, the ones it steers around.
+
 **It learns how you feel the cold.** Rate a wear "too hot", "just right" or "too cold"
 and your personal warmth offset shifts. The app converges on how *you* experience 12 °C
 rather than assuming an average body.
@@ -294,6 +303,7 @@ PYTHONPATH=backend .venv/bin/python backend/tests/test_categories.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_history.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_blend.py
 PYTHONPATH=backend .venv/bin/python backend/tests/test_outfit_options.py
+PYTHONPATH=backend .venv/bin/python backend/tests/test_taste.py
 ```
 
 ---

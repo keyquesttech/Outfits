@@ -98,6 +98,9 @@ export const api = {
   geocode: (q) => get('/api/geocode' + qs({ q })),
   geoip: (refresh = false) => get('/api/geoip' + (refresh ? '?refresh=true' : '')),
   suggest: (body) => post('/api/suggest', body),
+  suggestFeedback: (body) => post('/api/suggest/feedback', body),
+  withdrawSuggestFeedback: (id) => del(`/api/suggest/feedback/${id}`),
+  taste: () => get('/api/suggest/taste'),
   calibration: () => get('/api/suggest/calibration'),
 
   analytics: () => get('/api/analytics'),

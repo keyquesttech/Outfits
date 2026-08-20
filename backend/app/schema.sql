@@ -192,6 +192,20 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 
+-- Like/dislike verdicts on suggested outfits. Each row keeps the score
+-- components the suggestion had at the moment it was judged — that snapshot is
+-- the training example the taste model learns from.
+CREATE TABLE IF NOT EXISTS suggestion_feedback (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  verdict    INTEGER NOT NULL,             -- 1 liked, -1 disliked
+  item_ids   TEXT NOT NULL,                -- JSON list of the outfit's items
+  occasion   TEXT,
+  apparent_c REAL,
+  score      REAL,
+  breakdown  TEXT NOT NULL,                -- JSON of the score components
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Comfort feedback accumulates here; the recommender reads it to learn the
 -- wearer's personal warmth offset rather than assuming an average body.
 CREATE TABLE IF NOT EXISTS comfort_feedback (

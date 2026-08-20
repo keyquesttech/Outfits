@@ -277,6 +277,58 @@ export default function Insights() {
         </Section>
       </div>
 
+      {data.taste && (
+        <Section title="Taste">
+          <div className="card px-4 py-4">
+            {data.taste.total ? (
+              <>
+                <p className="text-sm">
+                  <span className="font-bold tabular-nums">{data.taste.likes}</span> liked ·{' '}
+                  <span className="font-bold tabular-nums">{data.taste.dislikes}</span> disliked
+                  {' — '}
+                  {data.taste.learning
+                    ? 'the scoring is adapting to you.'
+                    : `${data.taste.needed} more and the scoring starts adapting.`}
+                </p>
+                {(data.taste.favourites.length > 0 || data.taste.avoided.length > 0) && (
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    {data.taste.favourites.length > 0 && (
+                      <div>
+                        <p className="label mb-1.5">Pulled towards</p>
+                        {data.taste.favourites.map((f) => (
+                          <p key={f.id} className="truncate text-xs">
+                            <Link to={`/wardrobe/${f.id}`} style={{ color: 'var(--good)' }}>
+                              {f.name}
+                            </Link>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {data.taste.avoided.length > 0 && (
+                      <div>
+                        <p className="label mb-1.5">Steered away from</p>
+                        {data.taste.avoided.map((f) => (
+                          <p key={f.id} className="truncate text-xs">
+                            <Link to={`/wardrobe/${f.id}`} style={{ color: 'var(--bad)' }}>
+                              {f.name}
+                            </Link>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                Thumb suggestions up or down on the Today page and the scoring learns what
+                you actually like, not what an average person would.
+              </p>
+            )}
+          </div>
+        </Section>
+      )}
+
       {data.gaps.length > 0 && (
         <Section title="Gaps limiting suggestions">
           <div className="card px-4 py-4">

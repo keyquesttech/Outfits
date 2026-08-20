@@ -187,7 +187,7 @@ function WeatherCard({ weather, onRefresh, refreshing }) {
   )
 }
 
-function SuggestionCard({ suggestion, index, onWear, busy }) {
+function SuggestionCard({ suggestion, index, onWear, onRate, verdict, busy }) {
   const pct = Math.round(suggestion.score * 100)
   return (
     <div className="card card-link fade-up overflow-hidden"
@@ -202,9 +202,23 @@ function SuggestionCard({ suggestion, index, onWear, busy }) {
             {index === 0 ? 'Best match' : `Option ${index + 1}`}
           </span>
         </div>
-        <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--muted)' }}>
-          {pct}% match
-        </span>
+        <div className="flex items-center gap-1">
+          {/* Every thumb is a training example — this is how the suggestions
+              learn your taste rather than an average person's. */}
+          <button className="btn btn-ghost btn-icon" title="More like this"
+                  aria-pressed={verdict === 1} onClick={() => onRate(suggestion, 1)}>
+            <Icon name="thumbUp" size={16}
+                  style={verdict === 1 ? { color: 'var(--good)' } : undefined} />
+          </button>
+          <button className="btn btn-ghost btn-icon" title="Less like this"
+                  aria-pressed={verdict === -1} onClick={() => onRate(suggestion, -1)}>
+            <Icon name="thumbDown" size={16}
+                  style={verdict === -1 ? { color: 'var(--bad)' } : undefined} />
+          </button>
+          <span className="ml-1 text-xs font-bold tabular-nums" style={{ color: 'var(--muted)' }}>
+            {pct}% match
+          </span>
+        </div>
       </div>
 
       {/* Photos and the decision sit side by side once there is room. Stacked,
@@ -284,6 +298,30 @@ export default function Today() {
     await weather.reload(true)
     await suggestions.reload(true)
     setRefreshing(false)
+  }
+
+  // Verdicts already given this session, keyed by the outfit's items, so the
+  // thumb stays lit across reshuffles that surface the same combination.
+  const [verdicts, setVerdicts] = useState({})
+  const rate = async (suggestion, verdict) => {
+    const key = suggestion.item_ids.join(',')
+    const existing = verdicts[key]
+    try {
+      if (existing) {
+        await api.withdrawSuggestFeedback(existing.id)
+        setVerdicts((v) => { const next = { ...v }; delete next[key]; return next })
+        if (existing.verdict === verdict) return          // same thumb again: undone
+      }
+      const res = await api.suggestFeedback({
+        verdict, item_ids: suggestion.item_ids, occasion, day_offset: dayOffset,
+      })
+      setVerdicts((v) => ({ ...v, [key]: { id: res.id, verdict } }))
+      const t = res.taste
+      toast(t.learning
+        ? `Noted — ${t.likes} liked, ${t.dislikes} disliked. Suggestions are learning.`
+        : `Noted. ${t.needed} more verdict${t.needed === 1 ? '' : 's'} and the scoring starts adapting.`,
+        'success')
+    } catch (e) { toast(e.message, 'error') }
   }
 
   const wear = async (suggestion) => {
@@ -390,7 +428,9 @@ export default function Today() {
         {data?.suggestions?.map((s, i) => (
           <SuggestionCard
             key={s.item_ids.join('-')} suggestion={s} index={i}
-            onWear={wear} busy={wearing === s.item_ids.join(',')}
+            onWear={wear} onRate={rate}
+            verdict={verdicts[s.item_ids.join(',')]?.verdict}
+            busy={wearing === s.item_ids.join(',')}
           />
         ))}
 
