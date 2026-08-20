@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class ItemIn(BaseModel):
-    name: str = "Untitled item"
+    name: str = Field(default="Untitled item", max_length=200)
     category: str = "top"
     categories: list[str] | None = None
     subcategory: str | None = None
@@ -24,7 +24,7 @@ class ItemIn(BaseModel):
 
 
 class ItemPatch(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=200)
     category: str | None = None
     categories: list[str] | None = None
     subcategory: str | None = None
@@ -47,7 +47,7 @@ class ItemPatch(BaseModel):
 
 
 class CategoryIn(BaseModel):
-    label: str
+    label: str = Field(max_length=60)
     layer: str
     # Everything below has a sensible default derived from the layer, so adding
     # a category only really asks two questions.
@@ -70,7 +70,7 @@ class CategoryPatch(BaseModel):
 
 
 class OutfitIn(BaseModel):
-    name: str
+    name: str = Field(max_length=120)
     occasion: str | None = None
     notes: str | None = None
     is_favourite: bool = False

@@ -25,7 +25,12 @@ function dayLabel(iso) {
   return days < 365 ? label : `${label} ${worn.getFullYear()}`
 }
 
-const TODAY = () => new Date().toISOString().slice(0, 10)
+// Local date, not UTC. toISOString flips to yesterday between midnight and
+// 1am BST, which blocked logging "today" and back-dated late-evening wears.
+const TODAY = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const OCCASIONS = ['everyday', 'work', 'smart', 'sport', 'date', 'formal', 'lounge']
 

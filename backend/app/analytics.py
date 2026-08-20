@@ -3,8 +3,13 @@
 from collections import Counter
 from datetime import date, timedelta
 
-from . import colours, db, taste
+from . import categories, colours, db, taste
 from .serializers import item_out
+
+
+def _cat() -> dict:
+    """The category catalogue, read once per report rather than once per item."""
+    return categories.by_key()
 
 
 def summary() -> dict:
@@ -35,7 +40,8 @@ def most_worn(limit: int = 10) -> list[dict]:
         "SELECT * FROM items WHERE is_active = 1 AND total_wears > 0 "
         "ORDER BY total_wears DESC LIMIT ?", (limit,)
     )
-    return [item_out(r) for r in rows]
+    catalogue = _cat()
+    return [item_out(r, catalogue) for r in rows]
 
 
 def least_worn(limit: int = 10) -> list[dict]:
@@ -43,7 +49,8 @@ def least_worn(limit: int = 10) -> list[dict]:
         "SELECT * FROM items WHERE is_active = 1 ORDER BY total_wears ASC, id ASC LIMIT ?",
         (limit,),
     )
-    return [item_out(r) for r in rows]
+    catalogue = _cat()
+    return [item_out(r, catalogue) for r in rows]
 
 
 def neglected(days: int = 90, limit: int = 20) -> list[dict]:
@@ -54,7 +61,8 @@ def neglected(days: int = 90, limit: int = 20) -> list[dict]:
         "AND (last_worn IS NULL OR last_worn < ?) ORDER BY total_wears ASC LIMIT ?",
         (cutoff, limit),
     )
-    return [item_out(r) for r in rows]
+    catalogue = _cat()
+    return [item_out(r, catalogue) for r in rows]
 
 
 def colour_distribution() -> list[dict]:
@@ -100,7 +108,8 @@ def top_combinations(limit: int = 10) -> list[dict]:
         return []
     ids = {i for pair in pairs for i in pair}
     marks = ",".join("?" * len(ids))
-    lookup = {r["id"]: item_out(r) for r in
+    catalogue = _cat()
+    lookup = {r["id"]: item_out(r, catalogue) for r in
               db.query(f"SELECT * FROM items WHERE id IN ({marks})", tuple(ids))}
 
     out = []

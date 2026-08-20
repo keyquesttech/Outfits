@@ -58,11 +58,24 @@ def _write_items(outfit_id: int, item_ids: list[int]) -> None:
     )
 
 
+def _validate(payload) -> str:
+    name = " ".join(str(payload.name or "").split())
+    if not name:
+        raise HTTPException(400, "Give the outfit a name")
+    if payload.item_ids:
+        found = {i["id"] for i in load_items(payload.item_ids)}
+        missing = sorted(set(payload.item_ids) - found)
+        if missing:
+            raise HTTPException(400, f"Unknown item id(s): {missing}")
+    return name
+
+
 @router.post("", status_code=201)
 def create_outfit(payload: OutfitIn):
+    name = _validate(payload)
     outfit_id = db.execute(
         "INSERT INTO outfits(name, occasion, notes, is_favourite, is_base) VALUES (?,?,?,?,?)",
-        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite),
+        (name, payload.occasion, payload.notes, int(payload.is_favourite),
          int(payload.is_base)),
     )
     _write_items(outfit_id, payload.item_ids)
@@ -73,10 +86,11 @@ def create_outfit(payload: OutfitIn):
 def update_outfit(outfit_id: int, payload: OutfitIn):
     if not db.query_one("SELECT id FROM outfits WHERE id = ?", (outfit_id,)):
         raise HTTPException(404, "Outfit not found")
+    name = _validate(payload)
     db.execute(
         "UPDATE outfits SET name = ?, occasion = ?, notes = ?, is_favourite = ?, "
         "is_base = ? WHERE id = ?",
-        (payload.name, payload.occasion, payload.notes, int(payload.is_favourite),
+        (name, payload.occasion, payload.notes, int(payload.is_favourite),
          int(payload.is_base), outfit_id),
     )
     _write_items(outfit_id, payload.item_ids)

@@ -250,11 +250,27 @@ def list_items(
     sql += f" ORDER BY {order} LIMIT ?"
     params.append(limit)
 
+    # One catalogue read and one grouped extras query for the whole page.
+    # Before this, every item re-read the category table and ran its own
+    # extras lookup — 151 queries to list a 76-item wardrobe.
+    rows = db.query(sql, tuple(params))
+    catalogue = categories.by_key()
+    extras_by_item: dict[int, list[str]] = {}
+    if rows:
+        marks = ",".join("?" * len(rows))
+        for r in db.query(
+            f"SELECT item_id, category FROM item_categories "
+            f"WHERE item_id IN ({marks}) ORDER BY category",
+            tuple(row["id"] for row in rows),
+        ):
+            extras_by_item.setdefault(r["item_id"], []).append(r["category"])
+
     items = []
-    for r in db.query(sql, tuple(params)):
-        item = item_out(r)
-        item["categories"] = _categories_for(item["id"], item["category"])
-        item["extra_categories"] = item["categories"][1:]
+    for r in rows:
+        item = item_out(r, catalogue)
+        extra = [c for c in extras_by_item.get(item["id"], []) if c != item["category"]]
+        item["categories"] = [item["category"]] + extra
+        item["extra_categories"] = extra
         items.append(item)
     if layer:
         items = [i for i in items if i["layer"] == layer]

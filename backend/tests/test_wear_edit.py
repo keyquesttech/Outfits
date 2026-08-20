@@ -92,6 +92,16 @@ def test_an_unknown_item_is_refused_whole():
     assert counters(tee) == (1, "2026-08-10")   # nothing half-applied
 
 
+def test_logging_an_unknown_item_is_a_400_not_a_crash():
+    """Was a raw foreign-key violation — a 500 with a stack trace."""
+    fresh()
+    try:
+        log_wear(WearIn(item_ids=[999999], worn_on="2026-08-10", use_weather=False))
+        raise AssertionError("expected 400")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+
+
 def test_comfort_is_rerecorded_against_the_new_outfit():
     """The verdict was about how warm the outfit was; the outfit just changed."""
     fresh()

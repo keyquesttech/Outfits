@@ -126,6 +126,10 @@ def log_wear(payload: WearIn):
         resolved = len(item_ids) < len(saved_ids)
     if not item_ids:
         raise HTTPException(400, "Log at least one item, or an outfit that has items")
+    found = {i["id"] for i in load_items(item_ids)}
+    missing = sorted(set(item_ids) - found)
+    if missing:
+        raise HTTPException(400, f"Unknown item id(s): {missing}")
 
     worn_on = payload.worn_on or date.today().isoformat()
     try:

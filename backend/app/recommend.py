@@ -116,7 +116,18 @@ CLASHABLE_CHROMA = 12.0
 
 
 def _hue_family(item: dict):
-    """Returns None for anything that cannot clash: neutrals and metals."""
+    """Returns None for anything that cannot clash: neutrals and metals.
+
+    Memoised on the item dict: the sampler scores the same garment hundreds of
+    times per request, and its hue does not change between samples.
+    """
+    if "_hue" in item:
+        return item["_hue"]
+    item["_hue"] = _derive_hue(item)
+    return item["_hue"]
+
+
+def _derive_hue(item: dict):
     # Jewellery and watches read as metal, not colour — a gold ring is not a
     # competing hue against a burgundy scarf.
     if item.get("layer") == "jewellery":
@@ -384,7 +395,9 @@ def suggest(weather: dict, occasion: str | None = None, count: int = 3,
     pinned_items = []
     if pinned:
         from .serializers import load_items
-        pinned_items = load_items(pinned)
+        # An archived piece stays visible in its saved outfits, but a base must
+        # not smuggle it back into new suggestions.
+        pinned_items = [i for i in load_items(pinned) if i.get("is_active")]
         for item in pinned_items:
             item["tags"] = sorted(tag_map.get(item["id"], set()))
     pinned_layers = {i["layer"] for i in pinned_items}
